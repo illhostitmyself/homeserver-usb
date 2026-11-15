@@ -27,6 +27,8 @@ APPS = {
 }
 # Extra drives are listed as "<model>, <size> (/dev/...)".
 DRIVE = re.compile(r"\((/dev/[^)]+)\)$")
+# Always installed: the dashboard is what the screen shows. Listed as fixed in the checklist too.
+ALWAYS = {"homepage"}
 # Listed for information only; installed with the system either way.
 FIXED = {"Cockpit", "Automatic security updates"}
 
@@ -108,7 +110,7 @@ def run():
     root = gs.value("rootMountPoint")
     user = gs.value("username")
     ticked = take_checklist(gs)
-    picked = {APPS[name] for name in ticked if name in APPS}
+    picked = {APPS[name] for name in ticked if name in APPS} | ALWAYS
     drives = sorted(DRIVE.search(name).group(1) for name in ticked if DRIVE.search(name))
     apps = resolve(picked)
     etc = os.path.join(root, "etc/homeserver")

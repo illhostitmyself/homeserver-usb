@@ -1,10 +1,14 @@
 #!/bin/sh
-# live-build stores the kernel and initrd twice (plain and versioned names). The boot menus use the
-# plain names, so the versioned copies only double their size on the ISO.
+# live-build stores the kernel and initrd twice: GRUB (UEFI) boots the versioned names and isolinux
+# (BIOS) the plain ones. Point isolinux at the versioned files too and drop the plain copies.
 set -e
-for f in live/vmlinuz-* live/initrd.img-*; do
-  [ -e "$f" ] || continue
-  if ! grep -rqs "$(basename "$f")" boot isolinux; then
-    rm -f "$f"
-  fi
+kernel=$(ls live/vmlinuz-* | head -1)
+initrd=$(ls live/initrd.img-* | head -1)
+[ -n "$kernel" ] && [ -n "$initrd" ] || exit 0
+for cfg in isolinux/*.cfg; do
+  [ -e "$cfg" ] || continue
+  sed -i -E "s#/live/vmlinuz([[:space:]]|\$)#/$kernel\\1#g; s#/live/initrd\\.img([[:space:]]|\$)#/$initrd\\1#g" "$cfg"
 done
+if ! grep -rqsE '/live/(vmlinuz|initrd\.img)([[:space:]]|$)' boot isolinux; then
+  rm -f live/vmlinuz live/initrd.img
+fi
