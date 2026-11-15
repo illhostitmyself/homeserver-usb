@@ -15,7 +15,11 @@ while read -r name ref; do
   [[ -z $name || $name == \#* ]] && continue
   out=build/images/$name.tar.zst
   [[ -f $out && ${REFRESH_IMAGES:-0} != 1 ]] && continue
-  docker pull --platform linux/amd64 "$ref"
+  for try in 1 2 3 4 5; do
+    docker pull -q --platform linux/amd64 "$ref" && break
+    (( try == 5 )) && exit 1
+    sleep $((try * 10))
+  done
   docker save "$ref" | zstd -19 -T0 -q -o "$out.tmp"
   mv "$out.tmp" "$out"
 done < "$images_list"

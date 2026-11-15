@@ -1,14 +1,16 @@
 [Unit]
-Description=Home Server first-start setup
+Description=Home Server app setup (retry after a failed install-time setup)
 ConditionKernelCommandLine=!boot=live
 ConditionPathExists=!/var/lib/homeserver/setup-done
-Wants=network-online.target docker.service
+Wants=network-online.target
 After=network-online.target docker.service
+Requires=docker.service
+Before=homeserver.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/lib/homeserver/firstboot.sh
+ExecStart=/usr/lib/homeserver/configure-apps.sh /
 TimeoutStartSec=1h
 
 [Install]

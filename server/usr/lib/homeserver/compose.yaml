@@ -1,5 +1,9 @@
 # Apps are switched on with COMPOSE_PROFILES (set by the installer in /etc/homeserver/homeserver.env).
-# Everything shares /srv/media as /data, so downloads move into the libraries instantly.
+# SRV is /srv, except during install when the new disk is mounted somewhere else.
+# Folder layout follows the TRaSH Guides: one /data mount so imports are instant hardlinks.
+#   /data/torrents/{movies,tv}   qBittorrent downloads, by category
+#   /data/media/{movies,tv}      the libraries Jellyfin reads
+# The homepage.* labels put each app on the dashboard.
 name: homeserver
 
 x-linuxserver: &linuxserver
@@ -16,11 +20,26 @@ services:
     ports: ["80:3000"]
     environment:
       HOMEPAGE_ALLOWED_HOSTS: "*"
-      PUID: ${PUID}
-      PGID: ${PGID}
     volumes:
-      - /srv/homeserver/homepage:/app/config
-      - /srv/media:/srv/media:ro
+      - ${SRV}/appdata/homepage:/app/config
+      - ${SRV}:/srv:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  filebrowser:
+    image: filebrowser/filebrowser:latest
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    ports: ["8085:80"]
+    volumes:
+      - ${SRV}/data:/srv
+      - ${SRV}/appdata/filebrowser/database:/database
+      - ${SRV}/appdata/filebrowser/config:/config
+    labels:
+      homepage.group: Files
+      homepage.name: Files
+      homepage.icon: filebrowser.png
+      homepage.href: http://${HOMESERVER_HOST}:8085
+      homepage.description: Browse, upload and download your files
 
   jellyfin:
     <<: *linuxserver
@@ -28,46 +47,20 @@ services:
     profiles: [jellyfin]
     ports: ["8096:8096"]
     volumes:
-      - /srv/homeserver/jellyfin:/config
-      - /srv/media:/data
-
-  sonarr:
-    <<: *linuxserver
-    image: lscr.io/linuxserver/sonarr:latest
-    profiles: [downloads]
-    ports: ["8989:8989"]
-    volumes:
-      - /srv/homeserver/sonarr:/config
-      - /srv/media:/data
-
-  radarr:
-    <<: *linuxserver
-    image: lscr.io/linuxserver/radarr:latest
-    profiles: [downloads]
-    ports: ["7878:7878"]
-    volumes:
-      - /srv/homeserver/radarr:/config
-      - /srv/media:/data
-
-  prowlarr:
-    <<: *linuxserver
-    image: lscr.io/linuxserver/prowlarr:latest
-    profiles: [downloads]
-    ports: ["9696:9696"]
-    volumes:
-      - /srv/homeserver/prowlarr:/config
-
-  qbittorrent:
-    <<: *linuxserver
-    image: lscr.io/linuxserver/qbittorrent:latest
-    profiles: [downloads]
-    environment:
-      <<: *env
-      WEBUI_PORT: 8080
-    ports: ["8080:8080", "6881:6881", "6881:6881/udp"]
-    volumes:
-      - /srv/homeserver/qbittorrent:/config
-      - /srv/media:/data
+      - ${SRV}/appdata/jellyfin:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Watch
+      homepage.name: Movies & TV
+      homepage.icon: jellyfin.png
+      homepage.href: http://${HOMESERVER_HOST}:8096
+      homepage.description: Watch your movies and shows
+      homepage.widget.type: jellyfin
+      homepage.widget.url: http://jellyfin:8096
+      homepage.widget.key: ${JELLYFIN_KEY:-}
+      homepage.widget.enableBlocks: "true"
+      homepage.widget.enableNowPlaying: "true"
+      homepage.widget.version: "2"
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
@@ -79,4 +72,96 @@ services:
       TZ: ${TZ}
     ports: ["5055:5055"]
     volumes:
-      - /srv/homeserver/seerr:/app/config
+      - ${SRV}/appdata/seerr:/app/config
+    labels:
+      homepage.group: Watch
+      homepage.name: Request a movie or show
+      homepage.icon: jellyseerr.png
+      homepage.href: http://${HOMESERVER_HOST}:5055
+      homepage.description: Seerr
+      homepage.widget.type: jellyseerr
+      homepage.widget.url: http://seerr:5055
+      homepage.widget.key: ${SEERR_KEY:-}
+
+  sonarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/sonarr:latest
+    profiles: [downloads]
+    ports: ["8989:8989"]
+    volumes:
+      - ${SRV}/appdata/sonarr:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: TV shows
+      homepage.icon: sonarr.png
+      homepage.href: http://${HOMESERVER_HOST}:8989
+      homepage.description: Sonarr
+      homepage.widget.type: sonarr
+      homepage.widget.url: http://sonarr:8989
+      homepage.widget.key: ${SONARR_KEY}
+
+  radarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/radarr:latest
+    profiles: [downloads]
+    ports: ["7878:7878"]
+    volumes:
+      - ${SRV}/appdata/radarr:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: Movies
+      homepage.icon: radarr.png
+      homepage.href: http://${HOMESERVER_HOST}:7878
+      homepage.description: Radarr
+      homepage.widget.type: radarr
+      homepage.widget.url: http://radarr:7878
+      homepage.widget.key: ${RADARR_KEY}
+
+  prowlarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/prowlarr:latest
+    profiles: [downloads]
+    ports: ["9696:9696"]
+    volumes:
+      - ${SRV}/appdata/prowlarr:/config
+    labels:
+      homepage.group: Downloads
+      homepage.name: Download sources
+      homepage.icon: prowlarr.png
+      homepage.href: http://${HOMESERVER_HOST}:9696
+      homepage.description: Prowlarr. Add your indexers here
+      homepage.widget.type: prowlarr
+      homepage.widget.url: http://prowlarr:9696
+      homepage.widget.key: ${PROWLARR_KEY}
+
+  qbittorrent:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/qbittorrent:latest
+    profiles: [downloads]
+    environment:
+      <<: *env
+      WEBUI_PORT: 8080
+    ports: ["8080:8080", "6881:6881", "6881:6881/udp"]
+    volumes:
+      - ${SRV}/appdata/qbittorrent:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: Downloads in progress
+      homepage.icon: qbittorrent.png
+      homepage.href: http://${HOMESERVER_HOST}:8080
+      homepage.description: qBittorrent
+
+  # Syncs the TRaSH Guides quality profiles, custom formats and naming into Sonarr and Radarr daily.
+  recyclarr:
+    image: ghcr.io/recyclarr/recyclarr:8
+    profiles: [downloads]
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    environment:
+      TZ: ${TZ}
+      CRON_SCHEDULE: "@daily"
+    volumes:
+      - ${SRV}/appdata/recyclarr:/config

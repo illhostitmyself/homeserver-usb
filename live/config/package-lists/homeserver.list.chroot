@@ -11,6 +11,7 @@ dosfstools
 e2fsprogs
 fdisk
 parted
+cracklib-runtime
 
 # Screen: a full-screen browser showing the dashboard
 cage

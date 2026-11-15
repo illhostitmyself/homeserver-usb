@@ -2,7 +2,7 @@
 set -e
 
 # Each unit checks whether it's running from the USB stick or the installed system.
-systemctl enable homeserver-installer.service homeserver-kiosk.service homeserver-firstboot.service
+systemctl enable homeserver-installer.service homeserver-kiosk.service homeserver-firstboot.service homeserver.service
 
 # File sharing is switched on by the installer only if it was picked.
 systemctl disable smbd.service nmbd.service samba-ad-dc.service wsdd2.service 2>/dev/null || true
