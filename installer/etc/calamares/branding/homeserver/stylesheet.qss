@@ -1,0 +1,7 @@
+/* The page background matches the white of the channel banner; the sidebar keeps the navy. */
+#mainApp {
+    background-color: #FFFFFF;
+}
+#sidebarApp, #logoApp, #sidebarMenuApp {
+    background-color: #253457;
+}

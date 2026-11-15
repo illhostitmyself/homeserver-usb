@@ -1,4 +1,5 @@
 import os
+import re
 import secrets
 import shutil
 
@@ -6,7 +7,7 @@ import libcalamares
 from libcalamares.utils import debug, warning
 
 # Checklist entry (a "package" in netinstall.conf) -> app id. Every entry here, and every extra
-# drive (/dev/... from netinstall-drives.conf), is removed from the package list before the
+# drive (from netinstall-drives.conf), is removed from the package list before the
 # packages step, so apt never sees them.
 APPS = {
     "Homepage": "homepage",
@@ -24,6 +25,8 @@ APPS = {
     "Flood": "flood",
     "Shared folder": "files",
 }
+# Extra drives are listed as "<model>, <size> (/dev/...)".
+DRIVE = re.compile(r"\((/dev/[^)]+)\)$")
 # Listed for information only; installed with the system either way.
 FIXED = {"Cockpit", "Automatic security updates"}
 
@@ -67,7 +70,7 @@ def take_checklist(gs):
             rest = []
             for entry in entries:
                 name = package_name(entry)
-                if name in APPS or name in FIXED or name.startswith("/dev/"):
+                if name in APPS or name in FIXED or DRIVE.search(name):
                     ticked.add(name)
                 else:
                     rest.append(entry)
@@ -106,7 +109,7 @@ def run():
     user = gs.value("username")
     ticked = take_checklist(gs)
     picked = {APPS[name] for name in ticked if name in APPS}
-    drives = sorted(name for name in ticked if name.startswith("/dev/"))
+    drives = sorted(DRIVE.search(name).group(1) for name in ticked if DRIVE.search(name))
     apps = resolve(picked)
     etc = os.path.join(root, "etc/homeserver")
     debug("homeserver: picked={} installing={} drives={} user={}".format(sorted(picked), apps, drives, user))
