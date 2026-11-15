@@ -44,7 +44,7 @@ fi
 
 args=(
   -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
-  -device virtio-vga,edid=on,xres=1920,yres=1080 -device qemu-xhci -device usb-tablet -device usb-kbd
+  -device VGA,edid=on,xres=1920,yres=1080 -device qemu-xhci -device usb-tablet -device usb-kbd
   -display "$display" -vnc 127.0.0.1:7
   -qmp "unix:$state/qmp.sock,server,nowait"
   -serial "file:$state/serial.log"
