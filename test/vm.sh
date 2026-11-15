@@ -8,14 +8,18 @@
 #   test/vm.sh --disk     boot the installed system (stick unplugged)
 #   test/vm.sh --reset    wipe the VM disks first
 #   test/vm.sh --window   show the VM in a window instead of headless
+#   test/vm.sh --extra 3  three small (16 GB) SATA disks instead of the 500 GB one, to test pooling.
+#                         Pass the same --extra when booting the installed system with --disk.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 state=build/vm
 mkdir -p "$state"
 
-firmware=uefi net=1 stick=1 display=none
-for arg in "$@"; do
+firmware=uefi net=1 stick=1 display=none extra=0
+while (( $# )); do
+  arg=$1; shift
   case $arg in
+    --extra) extra=$1; shift ;;
     --bios) firmware=bios ;;
     --offline) net=0 ;;
     --disk) stick=0 ;;
@@ -25,9 +29,18 @@ for arg in "$@"; do
   esac
 done
 
-# Different sizes so the two are easy to tell apart in the installer.
+# Different sizes so they're easy to tell apart in the installer.
 [[ -f $state/nvme.qcow2 ]] || qemu-img create -q -f qcow2 "$state/nvme.qcow2" 64G
-[[ -f $state/sata.qcow2 ]] || qemu-img create -q -f qcow2 "$state/sata.qcow2" 500G
+if (( extra )); then
+  sata=()
+  for i in $(seq "$extra"); do
+    [[ -f $state/extra$i.qcow2 ]] || qemu-img create -q -f qcow2 "$state/extra$i.qcow2" 16G
+    sata+=("$state/extra$i.qcow2")
+  done
+else
+  [[ -f $state/sata.qcow2 ]] || qemu-img create -q -f qcow2 "$state/sata.qcow2" 500G
+  sata=("$state/sata.qcow2")
+fi
 
 args=(
   -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
@@ -36,8 +49,11 @@ args=(
   -qmp "unix:$state/qmp.sock,server,nowait"
   -serial "file:$state/serial.log"
   -drive "if=none,id=nvme,file=$state/nvme.qcow2" -device "nvme,drive=nvme,serial=NVME0001,bootindex=1"
-  -drive "if=none,id=sata,file=$state/sata.qcow2" -device ahci,id=ahci -device "ide-hd,drive=sata,bus=ahci.0,bootindex=2"
+  -device ahci,id=ahci
 )
+for i in "${!sata[@]}"; do
+  args+=(-drive "if=none,id=sata$i,file=${sata[$i]}" -device "ide-hd,drive=sata$i,bus=ahci.$i")
+done
 if [[ $firmware == uefi ]]; then
   [[ -f $state/OVMF_VARS.fd ]] || cp /usr/share/edk2/x64/OVMF_VARS.4m.fd "$state/OVMF_VARS.fd"
   args+=(-drive if=pflash,format=raw,readonly=on,file=/usr/share/edk2/x64/OVMF_CODE.4m.fd
