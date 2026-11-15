@@ -23,7 +23,8 @@ Page {
 
     function refresh() {
         var d = [], a = [], t = [0, 0, 0];
-        var ops = Global.value("packageOperations") || [];
+        // Lists arrive as Qt list objects, not JavaScript arrays; a JSON round trip converts them.
+        var ops = JSON.parse(JSON.stringify(Global.value("packageOperations") || []));
         for (var i = 0; i < ops.length; i++) {
             for (var key in ops[i]) {
                 var entries = ops[i][key];
