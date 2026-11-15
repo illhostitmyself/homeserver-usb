@@ -7,17 +7,19 @@
 #   test/vm.sh --offline  no network card
 #   test/vm.sh --disk     boot the installed system (stick unplugged)
 #   test/vm.sh --reset    wipe the VM disks first
+#   test/vm.sh --window   show the VM in a window instead of headless
 set -euo pipefail
 cd "$(dirname "$0")/.."
 state=build/vm
 mkdir -p "$state"
 
-firmware=uefi net=1 stick=1
+firmware=uefi net=1 stick=1 display=none
 for arg in "$@"; do
   case $arg in
     --bios) firmware=bios ;;
     --offline) net=0 ;;
     --disk) stick=0 ;;
+    --window) display=gtk,zoom-to-fit=on ;;
     --reset) rm -f "$state"/*.qcow2 "$state"/OVMF_VARS.fd ;;
     *) echo "unknown option $arg" >&2; exit 1 ;;
   esac
@@ -30,7 +32,7 @@ done
 args=(
   -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
   -device virtio-vga -device qemu-xhci -device usb-tablet -device usb-kbd
-  -display none -vnc 127.0.0.1:7
+  -display "$display" -vnc 127.0.0.1:7
   -qmp "unix:$state/qmp.sock,server,nowait"
   -serial "file:$state/serial.log"
   -drive "if=none,id=nvme,file=$state/nvme.qcow2" -device "nvme,drive=nvme,serial=NVME0001,bootindex=1"

@@ -1,8 +1,9 @@
-# Apps are switched on with COMPOSE_PROFILES (set by the installer in /etc/homeserver/homeserver.env).
+# Every app has its own profile; the installer lists the picked ones in COMPOSE_PROFILES
+# (/etc/homeserver/homeserver.env). Images are pulled during install, or on first boot if offline.
 # SRV is /srv, except during install when the new disk is mounted somewhere else.
 # Folder layout follows the TRaSH Guides: one /data mount so imports are instant hardlinks.
-#   /data/torrents/{movies,tv}   qBittorrent downloads, by category
-#   /data/media/{movies,tv}      the libraries Jellyfin reads
+#   /data/torrents/{movies,tv,books}               qBittorrent downloads, by category
+#   /data/media/{movies,tv,books,audiobooks,podcasts}  the libraries
 # The homepage.* labels put each app on the dashboard.
 name: homeserver
 
@@ -16,6 +17,7 @@ x-linuxserver: &linuxserver
 services:
   homepage:
     image: ghcr.io/gethomepage/homepage:latest
+    profiles: [homepage]
     restart: unless-stopped
     ports: ["80:3000"]
     environment:
@@ -27,6 +29,7 @@ services:
 
   filebrowser:
     image: filebrowser/filebrowser:latest
+    profiles: [filebrowser]
     restart: unless-stopped
     user: "${PUID}:${PGID}"
     ports: ["8085:80"]
@@ -64,7 +67,7 @@ services:
 
   seerr:
     image: ghcr.io/seerr-team/seerr:latest
-    profiles: [requests]
+    profiles: [seerr]
     restart: unless-stopped
     init: true
     user: "${PUID}:${PGID}"
@@ -86,7 +89,7 @@ services:
   sonarr:
     <<: *linuxserver
     image: lscr.io/linuxserver/sonarr:latest
-    profiles: [downloads]
+    profiles: [sonarr]
     ports: ["8989:8989"]
     volumes:
       - ${SRV}/appdata/sonarr:/config
@@ -104,7 +107,7 @@ services:
   radarr:
     <<: *linuxserver
     image: lscr.io/linuxserver/radarr:latest
-    profiles: [downloads]
+    profiles: [radarr]
     ports: ["7878:7878"]
     volumes:
       - ${SRV}/appdata/radarr:/config
@@ -122,7 +125,7 @@ services:
   prowlarr:
     <<: *linuxserver
     image: lscr.io/linuxserver/prowlarr:latest
-    profiles: [downloads]
+    profiles: [prowlarr]
     ports: ["9696:9696"]
     volumes:
       - ${SRV}/appdata/prowlarr:/config
@@ -139,7 +142,7 @@ services:
   qbittorrent:
     <<: *linuxserver
     image: lscr.io/linuxserver/qbittorrent:latest
-    profiles: [downloads]
+    profiles: [qbittorrent]
     environment:
       <<: *env
       WEBUI_PORT: 8080
@@ -154,10 +157,83 @@ services:
       homepage.href: http://${HOMESERVER_HOST}:8080
       homepage.description: qBittorrent
 
+  bazarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/bazarr:latest
+    profiles: [bazarr]
+    ports: ["6767:6767"]
+    volumes:
+      - ${SRV}/appdata/bazarr:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: Subtitles
+      homepage.icon: bazarr.png
+      homepage.href: http://${HOMESERVER_HOST}:6767
+      homepage.description: Bazarr
+      homepage.widget.type: bazarr
+      homepage.widget.url: http://bazarr:6767
+      homepage.widget.key: ${BAZARR_KEY:-}
+
+  chaptarr:
+    image: chaptarr/chaptarr:latest
+    profiles: [chaptarr]
+    restart: unless-stopped
+    environment: *env
+    ports: ["8789:8789"]
+    volumes:
+      - ${SRV}/appdata/chaptarr:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: Books & audiobooks
+      homepage.icon: readarr.png
+      homepage.href: http://${HOMESERVER_HOST}:8789
+      homepage.description: Chaptarr
+
+  flood:
+    image: jesec/flood:latest
+    profiles: [flood]
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    command: ["--rundir=/config", "--allowedpath=/data"]
+    ports: ["3030:3000"]
+    volumes:
+      - ${SRV}/appdata/flood:/config
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Downloads
+      homepage.name: Downloads (Flood)
+      homepage.icon: flood.png
+      homepage.href: http://${HOMESERVER_HOST}:3030
+      homepage.description: A friendlier view of qBittorrent
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    profiles: [audiobookshelf]
+    restart: unless-stopped
+    user: "${PUID}:${PGID}"
+    environment:
+      TZ: ${TZ}
+    ports: ["13378:80"]
+    volumes:
+      - ${SRV}/appdata/audiobookshelf/config:/config
+      - ${SRV}/appdata/audiobookshelf/metadata:/metadata
+      - ${SRV}/data:/data
+    labels:
+      homepage.group: Watch
+      homepage.name: Audiobooks & podcasts
+      homepage.icon: audiobookshelf.png
+      homepage.href: http://${HOMESERVER_HOST}:13378
+      homepage.description: Audiobookshelf
+      homepage.widget.type: audiobookshelf
+      homepage.widget.url: http://audiobookshelf:80
+      homepage.widget.key: ${AUDIOBOOKSHELF_KEY:-}
+
   # Syncs the TRaSH Guides quality profiles, custom formats and naming into Sonarr and Radarr daily.
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr:8
-    profiles: [downloads]
+    profiles: [recyclarr]
     restart: unless-stopped
     user: "${PUID}:${PGID}"
     environment:

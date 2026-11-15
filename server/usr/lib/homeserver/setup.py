@@ -2,8 +2,9 @@
 """Configures the apps picked in the installer. Called by configure-apps.sh; every step is safe to repeat.
 
   setup.py --root DIR prepare    write configs before the containers first start
-  setup.py --root DIR connect    link qBittorrent/Sonarr/Radarr/Prowlarr and set up Jellyfin
-  setup.py --root DIR seerr      sign Seerr in through Jellyfin and link it to Sonarr/Radarr
+  setup.py --root DIR connect    set up logins, download clients, libraries and Prowlarr
+  setup.py --root DIR link       sign Seerr in through Jellyfin and link it to Sonarr/Radarr
+                                 (after Recyclarr, so Seerr can use the TRaSH profiles)
   setup.py --root DIR dashboard  write the Homepage config
 
 DIR is the installed system's root: the new disk during install, / afterwards. Every app gets the
@@ -55,7 +56,7 @@ class Context:
         self.uid, self.gid = self.lookup_owner()
         self.host = (self.root / "etc/hostname").read_text().strip() + ".local"
         self.secrets = read_env(self.etc / "secrets.env")
-        for name in ("SONARR_KEY", "RADARR_KEY", "PROWLARR_KEY"):
+        for name in ("SONARR_KEY", "RADARR_KEY", "PROWLARR_KEY", "CHAPTARR_KEY", "BAZARR_KEY"):
             self.secrets.setdefault(name, secrets.token_hex(16))
         self.save_secrets()
 
@@ -143,11 +144,11 @@ WebUI\\HostHeaderValidation=false
 """
 
 
-def recyclarr_config(s):
+def recyclarr_config(s, apps):
     # The TRaSH Guides profiles Recyclarr's own templates use: web-1080p (Sonarr) and
     # hd-bluray-web (Radarr), minus the optional groups that need a personal choice.
     # Naming uses the TRaSH schemes made for Jellyfin.
-    return f"""sonarr:
+    sonarr = f"""sonarr:
   web-1080p:
     base_url: http://sonarr:8989
     api_key: {s["SONARR_KEY"]}
@@ -170,8 +171,8 @@ def recyclarr_config(s):
         standard: default
         daily: default
         anime: default
-
-radarr:
+"""
+    radarr = f"""radarr:
   hd-bluray-web:
     base_url: http://radarr:7878
     api_key: {s["RADARR_KEY"]}
@@ -191,28 +192,63 @@ radarr:
         rename: true
         standard: jellyfin-tmdb
 """
+    return "\n".join(part for app, part in (("sonarr", sonarr), ("radarr", radarr)) if app in apps)
+
+
+def bazarr_config(ctx):
+    # Bazarr fills in its defaults around these on first start.
+    s = ctx.secrets
+    return f"""auth:
+  type: form
+  username: {ctx.user}
+  password: {hashlib.md5(ctx.password.encode()).hexdigest()}
+  apikey: {s["BAZARR_KEY"]}
+general:
+  use_sonarr: {str("sonarr" in ctx.apps).lower()}
+  use_radarr: {str("radarr" in ctx.apps).lower()}
+sonarr:
+  ip: sonarr
+  port: 8989
+  apikey: {s["SONARR_KEY"]}
+radarr:
+  ip: radarr
+  port: 7878
+  apikey: {s["RADARR_KEY"]}
+"""
+
+
+CATEGORIES = {"movies": "movies", "tv": "tv", "books": "books", "audiobooks": "audiobooks"}
+ARRS = {"sonarr": 8989, "radarr": 7878, "prowlarr": 9696, "chaptarr": 8789}
 
 
 def prepare(ctx):
-    for d in ("torrents/movies", "torrents/tv", "media/movies", "media/tv"):
+    ctx.password  # fails early if the installer didn't leave one
+    for d in [f"torrents/{c}" for c in CATEGORIES] + [f"media/{m}" for m in
+                                                      ("movies", "tv", "books", "audiobooks", "podcasts")]:
         ctx.mkdir(ctx.data / d)
     ctx.own(ctx.srv, ctx.data, ctx.data / "torrents", ctx.data / "media")
-    for d in ("homepage", "filebrowser/database", "filebrowser/config", "jellyfin", "seerr",
-              "sonarr", "radarr", "prowlarr", "qbittorrent/qBittorrent", "recyclarr"):
+    for d in ("homepage", "filebrowser/database", "filebrowser/config", "jellyfin", "seerr", "bazarr/config",
+              "audiobookshelf/config", "audiobookshelf/metadata", "flood", "recyclarr", "qbittorrent/qBittorrent",
+              *ARRS):
         ctx.mkdir(ctx.appdata / d)
-    ctx.own(ctx.appdata / "filebrowser", ctx.appdata / "qbittorrent")
+    ctx.own(ctx.appdata / "filebrowser", ctx.appdata / "qbittorrent", ctx.appdata / "bazarr",
+            ctx.appdata / "audiobookshelf")
 
-    if "downloads" in ctx.apps:
-        for name, port in (("sonarr", 8989), ("radarr", 7878), ("prowlarr", 9696)):
-            path = ctx.appdata / name / "config.xml"
-            if not path.exists():
-                ctx.write(path, arr_config(port, ctx.secrets[name.upper() + "_KEY"], name.capitalize()))
-        qbt = ctx.appdata / "qbittorrent/qBittorrent"
-        if not (qbt / "qBittorrent.conf").exists():
-            ctx.write(qbt / "qBittorrent.conf", qbittorrent_config(ctx.user, ctx.password))
-            ctx.write(qbt / "categories.json", json.dumps(
-                {"movies": {"save_path": "/data/torrents/movies"}, "tv": {"save_path": "/data/torrents/tv"}}, indent=2))
-        ctx.write(ctx.appdata / "recyclarr/recyclarr.yml", recyclarr_config(ctx.secrets))
+    for name, port in ARRS.items():
+        path = ctx.appdata / name / "config.xml"
+        if name in ctx.apps and not path.exists():
+            ctx.write(path, arr_config(port, ctx.secrets[name.upper() + "_KEY"], name.capitalize()))
+    qbt = ctx.appdata / "qbittorrent/qBittorrent"
+    if "qbittorrent" in ctx.apps and not (qbt / "qBittorrent.conf").exists():
+        ctx.write(qbt / "qBittorrent.conf", qbittorrent_config(ctx.user, ctx.password))
+        ctx.write(qbt / "categories.json", json.dumps(
+            {c: {"save_path": f"/data/torrents/{c}"} for c in CATEGORIES}, indent=2))
+    bazarr = ctx.appdata / "bazarr/config/config.yaml"
+    if "bazarr" in ctx.apps and not bazarr.exists():
+        ctx.write(bazarr, bazarr_config(ctx))
+        bazarr.chmod(0o600)
+    if "recyclarr" in ctx.apps:
+        ctx.write(ctx.appdata / "recyclarr/recyclarr.yml", recyclarr_config(ctx.secrets, ctx.apps))
         (ctx.appdata / "recyclarr/recyclarr.yml").chmod(0o600)
 
     write_env(ctx.etc / "compose.env", {"PUID": ctx.uid, "PGID": ctx.gid, "TZ": timezone(ctx.root),
@@ -256,7 +292,7 @@ def dashboard(ctx):
 
 # --- connect -------------------------------------------------------------------------------
 
-def call(method, url, body=None, headers=None, opener=None) -> Any:
+def call(method, url, body=None, headers=None, opener=None, allow_error=False) -> Any:
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(url, data=data, method=method, headers={
         "Content-Type": "application/json", "Accept": "application/json", **(headers or {})})
@@ -264,7 +300,9 @@ def call(method, url, body=None, headers=None, opener=None) -> Any:
         with (opener or urllib.request.build_opener()).open(req, timeout=60) as resp:
             raw = resp.read()
     except urllib.error.HTTPError as err:
-        sys.exit(f"{method} {url} -> {err.code}: {err.read()[:500].decode(errors='replace')}")
+        if not allow_error:
+            sys.exit(f"{method} {url} -> {err.code}: {err.read()[:500].decode(errors='replace')}")
+        raw = err.read()
     try:
         return json.loads(raw) if raw else None
     except ValueError:
@@ -310,41 +348,88 @@ def set_login(api, ctx):
                   username=ctx.user, password=ctx.password, passwordConfirmation=ctx.password)
 
 
-def connect_downloads(ctx):
-    s = ctx.secrets
-    wait("http://localhost:8080")
-    for name, port, category_field, category, folder, rename in (
-            ("sonarr", 8989, "tvCategory", "tv", "/data/media/tv", "renameEpisodes"),
-            ("radarr", 7878, "movieCategory", "movies", "/data/media/movies", "renameMovies")):
-        wait(f"http://localhost:{port}/ping")
-        api = arr_api(port, s[name.upper() + "_KEY"])
-        if not api("GET", "/downloadclient"):
-            schema = next(x for x in api("GET", "/downloadclient/schema") if x["implementation"] == "QBittorrent")
-            schema.update(name="qBittorrent", enable=True, priority=1)
-            fill(schema, host="qbittorrent", port=8080, username=ctx.user, password=ctx.password,
-                 **{category_field: category})
-            api("POST", "/downloadclient?forceSave=true", schema)
-        if not api("GET", "/rootfolder"):
-            api("POST", "/rootfolder", {"path": folder})
+def connect_arr(ctx, name):
+    port = ARRS[name]
+    version = "v1" if name == "chaptarr" else "v3"
+    wait(f"http://localhost:{port}/ping")
+    api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
+    categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
+                  "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
+    if not api("GET", "/downloadclient"):
+        schema = next(x for x in api("GET", "/downloadclient/schema") if x["implementation"] == "QBittorrent")
+        schema.update(name="qBittorrent", enable=True, priority=1)
+        fill(schema, host="qbittorrent", port=8080, username=ctx.user, password=ctx.password, **categories)
+        api("POST", "/downloadclient?forceSave=true", schema)
+
+    if not api("GET", "/rootfolder"):
+        if name == "chaptarr":
+            quality = {p["name"]: p["id"] for p in api("GET", "/qualityprofile")}
+            metadata = {p["name"]: p["id"] for p in api("GET", "/metadataprofile")}
+            # folderType 1 = audiobooks only, 2 = ebooks only; each takes only its own profiles.
+            for label, path, kind, prefix, q, m in (
+                    ("Audiobooks", "/data/media/audiobooks", 1, "audiobook", "Audiobook", "Audiobook Default"),
+                    ("Books", "/data/media/books", 2, "ebook", "E-Book", "Ebook Default")):
+                api("POST", "/rootfolder", {
+                    "name": label, "path": path, "folderType": kind, "isCalibreLibrary": False,
+                    f"{prefix}QualityProfileId": quality.get(q, 1), f"{prefix}MetadataProfileId": metadata.get(m, 1),
+                    "defaultMonitorOption": "all", "defaultNewItemMonitorOption": "all"})
+        else:
+            api("POST", "/rootfolder", {"path": {"sonarr": "/data/media/tv", "radarr": "/data/media/movies"}[name]})
+
+    if name in ("sonarr", "radarr"):
         # TRaSH Guides media management: hardlinks, subtitles alongside, let custom formats handle propers.
         update_config(api, "mediamanagement", copyUsingHardlinks=True, importExtraFiles=True,
                       extraFileExtensions="srt,ass,ssa,sub,idx", downloadPropersAndRepacks="doNotPrefer",
                       enableMediaInfo=True)
-        update_config(api, "naming", **{rename: True})
-        set_login(api, ctx)
+        update_config(api, "naming", **{"renameEpisodes" if name == "sonarr" else "renameMovies": True})
+    set_login(api, ctx)
 
+
+def connect_prowlarr(ctx):
     wait("http://localhost:9696/ping")
-    prowlarr = arr_api(9696, s["PROWLARR_KEY"], "v1")
-    have = {a["implementation"] for a in prowlarr("GET", "/applications")}
-    for impl, port in (("Sonarr", 8989), ("Radarr", 7878)):
-        if impl in have:
+    prowlarr = arr_api(9696, ctx.secrets["PROWLARR_KEY"], "v1")
+    schemas = {x["implementation"]: x for x in prowlarr("GET", "/applications/schema")}
+    have = {a["name"] for a in prowlarr("GET", "/applications")}
+    for name in ("sonarr", "radarr", "chaptarr"):
+        label = name.capitalize()
+        if name not in ctx.apps or label in have:
             continue
-        schema = next(x for x in prowlarr("GET", "/applications/schema") if x["implementation"] == impl)
-        schema.update(name=impl, syncLevel="fullSync")
-        fill(schema, prowlarrUrl="http://prowlarr:9696", baseUrl=f"http://{impl.lower()}:{port}",
-             apiKey=s[impl.upper() + "_KEY"])
+        # Chaptarr speaks Readarr's API; Prowlarr may not know it by name.
+        schema = schemas.get(label) or schemas.get("Readarr")
+        schema.update(name=label, syncLevel="fullSync")
+        fill(schema, prowlarrUrl="http://prowlarr:9696", baseUrl=f"http://{name}:{ARRS[name]}",
+             apiKey=ctx.secrets[name.upper() + "_KEY"])
         prowlarr("POST", "/applications?forceSave=true", schema)
     set_login(prowlarr, ctx)
+
+
+def connect_audiobookshelf(ctx):
+    base = "http://localhost:13378"
+    wait(base + "/status")
+    if not call("GET", base + "/status").get("isInit"):
+        call("POST", base + "/init", {"newRoot": {"username": ctx.user, "password": ctx.password}})
+    user = call("POST", base + "/login", {"username": ctx.user, "password": ctx.password})["user"]
+    auth = {"Authorization": "Bearer " + (user.get("accessToken") or user["token"])}
+    have = {lib["name"] for lib in call("GET", base + "/api/libraries", headers=auth)["libraries"]}
+    for name, path, kind in (("Audiobooks", "/data/media/audiobooks", "book"), ("Books", "/data/media/books", "book"),
+                             ("Podcasts", "/data/media/podcasts", "podcast")):
+        if name not in have:
+            call("POST", base + "/api/libraries", {"name": name, "folders": [{"fullPath": path}], "mediaType": kind},
+                 auth)
+    if not ctx.secrets.get("AUDIOBOOKSHELF_KEY"):
+        key = call("POST", base + "/api/api-keys", {"name": "Dashboard", "userId": user["id"], "isActive": True}, auth)
+        ctx.secrets["AUDIOBOOKSHELF_KEY"] = key["apiKey"]["apiKey"]
+        ctx.save_secrets()
+
+
+def connect_flood(ctx):
+    base = "http://localhost:3030/api"
+    wait(base + "/auth/verify")
+    if call("GET", base + "/auth/verify", allow_error=True).get("initialUser"):
+        call("POST", base + "/auth/register", {
+            "username": ctx.user, "password": ctx.password, "level": 10,
+            "client": {"client": "qBittorrent", "type": "web", "version": 1, "url": "http://qbittorrent:8080",
+                       "username": ctx.user, "password": ctx.password}})
 
 
 def connect_jellyfin(ctx):
@@ -379,10 +464,21 @@ def connect_jellyfin(ctx):
 
 
 def connect(ctx):
-    if "downloads" in ctx.apps:
-        connect_downloads(ctx)
-    if "jellyfin" in ctx.apps:
-        connect_jellyfin(ctx)
+    if "qbittorrent" in ctx.apps:
+        wait("http://localhost:8080")
+    for name in ("sonarr", "radarr", "chaptarr"):
+        if name in ctx.apps:
+            connect_arr(ctx, name)
+    steps = {"prowlarr": connect_prowlarr, "jellyfin": connect_jellyfin,
+             "audiobookshelf": connect_audiobookshelf, "flood": connect_flood}
+    for name, step in steps.items():
+        if name in ctx.apps:
+            step(ctx)
+
+
+def link(ctx):
+    if "seerr" in ctx.apps:
+        connect_seerr(ctx)
 
 
 def pick_profile(profiles, preferred):
@@ -393,7 +489,7 @@ def pick_profile(profiles, preferred):
     return profiles[0]
 
 
-def seerr(ctx):
+def connect_seerr(ctx):
     base = "http://localhost:5055/api/v1"
     wait(base + "/status")
     session = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -414,6 +510,8 @@ def seerr(ctx):
                  {"enableSeasonFolders": True, "animeTags": []}),
                 ("radarr", 7878, "/data/media/movies", ["HD Bluray + WEB", "1080"],
                  {"minimumAvailability": "released"})):
+            if name not in ctx.apps:
+                continue
             key = ctx.secrets[name.upper() + "_KEY"]
             profile = pick_profile(arr_api(port, key)("GET", "/qualityprofile"), preferred)
             call("POST", f"{base}/settings/{name}", {
@@ -429,7 +527,7 @@ def seerr(ctx):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default="/")
-    parser.add_argument("step", choices=["prepare", "connect", "seerr", "dashboard"])
+    steps = {"prepare": prepare, "connect": connect, "link": link, "dashboard": dashboard}
+    parser.add_argument("step", choices=list(steps))
     args = parser.parse_args()
-    context = Context(args.root)
-    {"prepare": prepare, "connect": connect, "seerr": seerr, "dashboard": dashboard}[args.step](context)
+    steps[args.step](Context(args.root))
