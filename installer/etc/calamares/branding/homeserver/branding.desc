@@ -13,9 +13,9 @@ strings:
   shortProductName: "Home Server"
   version: "1"
   shortVersion: "1"
-  versionedName: "Home Server"
   shortVersionedName: "Home Server"
   bootloaderEntryName: "Home Server"
+  versionedName: "Home Server"
   productUrl: "https://github.com/illhostitmyself/homeserver-usb"
   supportUrl: ""
   knownIssuesUrl: ""
@@ -30,8 +30,9 @@ images:
 slideshow: "show.qml"
 slideshowAPI: 1
 
+# Channel colors: navy #253457, orange #FB4D13.
 style:
-  SidebarBackground: "#2f5d62"
-  SidebarText: "#f4efe6"
-  SidebarTextCurrent: "#2f5d62"
-  SidebarBackgroundCurrent: "#f4efe6"
+  SidebarBackground: "#253457"
+  SidebarText: "#FFFFFF"
+  SidebarTextCurrent: "#FFFFFF"
+  SidebarBackgroundCurrent: "#FB4D13"

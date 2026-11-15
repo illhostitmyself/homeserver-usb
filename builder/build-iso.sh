@@ -15,10 +15,9 @@ sed -i 's/^set default=0$/set default=0\nset timeout=5/' config/bootloaders/grub
 sed -i 's/^timeout 0$/timeout 50/' config/bootloaders/isolinux/isolinux.cfg
 
 overlay=config/includes.chroot_after_packages
-mkdir -p "$overlay" config/includes.binary/homeserver/images
+mkdir -p "$overlay"
 cp -a /src/installer/. /src/server/. "$overlay/"
 chown -R root:root "$overlay"
-cp -l /build/images/*.tar.zst config/includes.binary/homeserver/images/
 
 lb build
 mv -f ./*.hybrid.iso /out/homeserver-usb.iso

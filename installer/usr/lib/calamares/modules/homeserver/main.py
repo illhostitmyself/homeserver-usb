@@ -5,8 +5,9 @@ import shutil
 import libcalamares
 from libcalamares.utils import debug, warning
 
-# Checklist entry (a "package" in netinstall.conf) -> app id. Every entry here is removed from the
-# package list before the packages step, so apt never sees them.
+# Checklist entry (a "package" in netinstall.conf) -> app id. Every entry here, and every extra
+# drive (/dev/... from netinstall-drives.conf), is removed from the package list before the
+# packages step, so apt never sees them.
 APPS = {
     "Homepage": "homepage",
     "File Browser": "filebrowser",
@@ -66,7 +67,7 @@ def take_checklist(gs):
             rest = []
             for entry in entries:
                 name = package_name(entry)
-                if name in APPS or name in FIXED:
+                if name in APPS or name in FIXED or name.startswith("/dev/"):
                     ticked.add(name)
                 else:
                     rest.append(entry)
@@ -103,10 +104,13 @@ def run():
     gs = libcalamares.globalstorage
     root = gs.value("rootMountPoint")
     user = gs.value("username")
-    picked = {APPS[name] for name in take_checklist(gs) if name in APPS}
+    ticked = take_checklist(gs)
+    picked = {APPS[name] for name in ticked if name in APPS}
+    drives = sorted(name for name in ticked if name.startswith("/dev/"))
     apps = resolve(picked)
     etc = os.path.join(root, "etc/homeserver")
-    debug("homeserver: picked={} installing={} user={}".format(sorted(picked), apps, user))
+    debug("homeserver: picked={} installing={} drives={} user={}".format(sorted(picked), apps, drives, user))
+    write(os.path.join(etc, "drives"), "".join(d + "\n" for d in drives))
 
     obscured = gs.value("password")
     if obscured:

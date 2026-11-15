@@ -13,8 +13,9 @@ TTYVHangup=yes
 StandardInput=tty-fail
 UtmpIdentifier=tty1
 UtmpMode=user
-Environment=XDG_SESSION_TYPE=wayland QT_QPA_PLATFORM=wayland QT_SCALE_FACTOR=1.25
-ExecStart=/usr/bin/cage -d -s -- /usr/bin/calamares
+Environment=XDG_SESSION_TYPE=wayland QT_QPA_PLATFORM=wayland
+ExecStartPre=/usr/lib/homeserver/list-drives.sh
+ExecStart=/usr/bin/cage -d -s -- /usr/lib/homeserver/installer-scale.sh
 Restart=always
 RestartSec=2
 

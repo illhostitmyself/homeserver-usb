@@ -1,0 +1,10 @@
+#!/bin/sh
+# live-build stores the kernel and initrd twice (plain and versioned names). The boot menus use the
+# plain names, so the versioned copies only double their size on the ISO.
+set -e
+for f in live/vmlinuz-* live/initrd.img-*; do
+  [ -e "$f" ] || continue
+  if ! grep -rqs "$(basename "$f")" boot isolinux; then
+    rm -f "$f"
+  fi
+done

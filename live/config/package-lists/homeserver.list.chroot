@@ -28,6 +28,7 @@ cockpit-system
 cockpit-storaged
 cockpit-networkmanager
 cockpit-packagekit
+mergerfs
 samba
 wsdd2
 avahi-daemon

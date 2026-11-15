@@ -25,9 +25,9 @@ for arg in "$@"; do
   esac
 done
 
-for d in nvme sata; do
-  [[ -f $state/$d.qcow2 ]] || qemu-img create -q -f qcow2 "$state/$d.qcow2" 64G
-done
+# Different sizes so the two are easy to tell apart in the installer.
+[[ -f $state/nvme.qcow2 ]] || qemu-img create -q -f qcow2 "$state/nvme.qcow2" 64G
+[[ -f $state/sata.qcow2 ]] || qemu-img create -q -f qcow2 "$state/sata.qcow2" 500G
 
 args=(
   -enable-kvm -cpu host -smp 4 -m 4096 -machine q35

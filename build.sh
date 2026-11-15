@@ -1,28 +1,9 @@
 #!/usr/bin/env bash
-# Builds out/homeserver-usb.iso. Needs Docker and about 20 GB of free disk.
+# Builds out/homeserver-usb.iso. Needs Docker and about 15 GB of free disk.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-images_list=server/usr/share/homeserver/images.list
-mkdir -p build/images out
-
-# Every image the compose file uses must be bundled, or offline installs break.
-for ref in $(grep -oP '^\s*image:\s*\K\S+' server/usr/lib/homeserver/compose.yaml); do
-  grep -q " $ref\$" "$images_list" || { echo "compose image $ref is missing from $images_list" >&2; exit 1; }
-done
-
-while read -r name ref; do
-  [[ -z $name || $name == \#* ]] && continue
-  out=build/images/$name.tar.zst
-  [[ -f $out && ${REFRESH_IMAGES:-0} != 1 ]] && continue
-  for try in 1 2 3 4 5; do
-    docker pull -q --platform linux/amd64 "$ref" && break
-    (( try == 5 )) && exit 1
-    sleep $((try * 10))
-  done
-  docker save "$ref" | zstd -19 -T0 -q -o "$out.tmp"
-  mv "$out.tmp" "$out"
-done < "$images_list"
+mkdir -p build out
 
 docker build -q -t homeserver-usb-builder builder >/dev/null
 docker run --rm --privileged --hostname builder \
