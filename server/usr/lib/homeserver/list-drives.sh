@@ -17,7 +17,7 @@ done < <(lsblk -dnpr -o NAME,TYPE,SIZE,MODEL -e 7,11)
 {
   echo '- name: "Extra drives"'
   if (( ${#entries[@]} > 2 )); then
-    echo '  description: "Tick a drive to add it. Nothing is ticked unless you tick it."'
+    echo '  description: "Joined with your main drive as one storage. If one breaks, only its files are lost. Your main drive is skipped if ticked."'
   else
     echo '  description: "No other drives found. Everything goes on the drive you picked."'
   fi

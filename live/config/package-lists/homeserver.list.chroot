@@ -2,6 +2,14 @@
 calamares
 calamares-settings-debian
 qt6-wayland
+# QML for the slideshow and the Review page (not pulled in without recommends)
+qml6-module-qtqml
+qml6-module-qtqml-workerscript
+qml6-module-qtquick
+qml6-module-qtquick-controls
+qml6-module-qtquick-layouts
+qml6-module-qtquick-templates
+qml6-module-qtquick-window
 live-boot
 live-config
 live-config-systemd
