@@ -7,27 +7,32 @@ point-and-click installer: language, which disk to use, which apps you want, you
 password. It installs Debian with Docker, sets up the apps you picked, connects them to each other,
 and leaves the computer showing a dashboard with everything on it. No terminal at any point.
 
-Everything is on the stick, so it installs without internet. Apps that download things obviously
-need internet once they're running.
+The stick holds Debian and the installer; the apps are downloaded during the install, so connect
+the computer to your router with a cable. Without internet the system still installs, and the apps
+download and set themselves up the first time it starts with a connection.
 
 ## What you get
 
-Always installed:
+Every app has its own checkbox in the installer, and all of them are ticked by default. Apps that
+another app needs are added automatically (Seerr adds Jellyfin; Sonarr, Radarr, Chaptarr and Flood
+add qBittorrent).
 
-- **Dashboard** ([Homepage](https://gethomepage.dev)) on `http://homeserver.local`, also shown full screen on
-  the server's own monitor. Apps appear on it automatically through Docker labels, with live status.
-- **Files** ([File Browser](https://filebrowser.org)) to browse, upload and download from the browser
-- **Server settings** ([Cockpit](https://cockpit-project.org)) on port 9090: updates, disks, restart, shut down
-- **Security updates** installed automatically
-
-Optional, all ticked by default:
-
-| In the installer | What you get |
+| App | What it's for |
 |---|---|
-| Movies & TV | [Jellyfin](https://jellyfin.org) with Movies and Shows libraries already created |
+| [Homepage](https://gethomepage.dev) | The dashboard, shown full screen on the server and on `http://homeserver.local`. Apps appear on it through Docker labels, with live status |
+| [File Browser](https://filebrowser.org) | Browse, upload and download files from a browser |
 | Shared folder | A Samba share (`\\homeserver\Media`) that shows up on Windows and Mac |
-| Automatic downloads | Sonarr, Radarr, Prowlarr, qBittorrent and [Recyclarr](https://recyclarr.dev), connected to each other |
-| Request page | [Seerr](https://github.com/seerr-team/seerr), signed in through Jellyfin and connected to Sonarr and Radarr. Picking it adds Movies & TV and Automatic downloads |
+| [Jellyfin](https://jellyfin.org) | Movies and shows, with the libraries already created |
+| [Seerr](https://github.com/seerr-team/seerr) | Request a movie or show; signed in through Jellyfin and linked to Sonarr and Radarr |
+| [Audiobookshelf](https://www.audiobookshelf.org) | Audiobooks, ebooks and podcasts, with the libraries already created |
+| Sonarr, Radarr, [Chaptarr](https://hub.docker.com/r/chaptarr/chaptarr) | TV, movies, and books/audiobooks, each linked to qBittorrent with its own category |
+| Prowlarr | Download sources, shared with Sonarr, Radarr and Chaptarr |
+| Bazarr | Subtitles, linked to Sonarr and Radarr |
+| [Recyclarr](https://recyclarr.dev) | Keeps Sonarr and Radarr on the TRaSH Guides profiles |
+| qBittorrent, [Flood](https://flood.js.org) | The downloader, and a friendlier page for it |
+
+Always installed: [Cockpit](https://cockpit-project.org) for server settings (port 9090: updates,
+disks, restart, shut down) and automatic security updates.
 
 Every app is configured during the install, and all of them use the **name and password typed in the
 installer**. The only thing left to do is add your indexers in Prowlarr.
@@ -35,17 +40,24 @@ installer**. The only thing left to do is add your indexers in Prowlarr.
 The download setup follows the [TRaSH Guides](https://trash-guides.info):
 
 - One `/data` folder shared by every app, so finished downloads are hardlinked into the library
-  instantly, with no copies: `/srv/data/torrents/{movies,tv}` for qBittorrent and
-  `/srv/data/media/{movies,tv}` for Jellyfin.
-- qBittorrent uses automatic torrent management with `movies` and `tv` categories.
+  instead of copied: `/srv/data/torrents/{movies,tv,books,audiobooks}` for qBittorrent and
+  `/srv/data/media/...` for the libraries.
+- qBittorrent uses automatic torrent management with one category per app.
 - Sonarr and Radarr have hardlinks, subtitle import and "do not prefer" propers. Recyclarr syncs the
   TRaSH WEB-1080p (Sonarr) and HD Bluray + WEB (Radarr) profiles, custom formats and the Jellyfin
-  naming schemes once a day. This part needs internet; on an offline install it starts working
-  the first day the server is online.
-- Seerr requests use those profiles.
+  naming schemes daily, and Seerr requests use those profiles.
+
+### Disks
 
 The disk you pick is split into EFI, `/boot`, swap, `/` (30%, 20–50 GB), `/home` (10%, 5–10 GB) and
-`/srv` (the rest) for media and app data.
+`/srv` (the rest) for app settings and media. There's also a manual option.
+
+Other drives in the computer can be ticked on the next page. They're **erased** and pooled with the
+main drive's media folder using [mergerfs](https://github.com/trapexit/mergerfs): every drive keeps
+its own filesystem, so a dead drive only loses the files that were on it, and any drive can be read
+on another computer. New folders go to the drive with the most free space, and their contents stay
+together. When a download and its library folder end up on different drives, the app copies the
+file instead of hardlinking it.
 
 ## Install
 
@@ -68,8 +80,9 @@ Needs a 64-bit PC with 4 GB of RAM and a 64 GB disk.
   live system that boots straight into [Calamares](https://calamares.io), full screen, with no desktop.
 - `installer/` holds the Calamares settings, branding, and a small Python step
   (`usr/lib/calamares/modules/homeserver`) that saves your choices.
-- `server/` is copied onto the installed system. At the end of the install, `install-apps.sh` starts
-  a temporary Docker daemon that writes to the new disk and loads only the images you picked.
+- `server/` is copied onto the installed system. `setup-drives.sh` erases and pools any extra drives.
+  At the end of the install, `install-apps.sh` starts a temporary Docker daemon that writes to the
+  new disk and downloads only the apps you picked.
   `configure-apps.sh` then has `setup.py` write each app's config (API keys, paths, logins), starts
   everything with `compose.yaml`, and connects the apps through their APIs. If that fails, the
   installed system retries it on its first start.
@@ -77,15 +90,14 @@ Needs a 64-bit PC with 4 GB of RAM and a 64 GB disk.
 
 ## Build it yourself
 
-You need Docker and about 20 GB of free disk:
+You need Docker and about 15 GB of free disk:
 
 ```bash
 ./build.sh             # writes out/homeserver-usb.iso
-test/vm.sh --reset     # boots it in a VM as a USB stick, with two empty disks
+test/vm.sh --reset     # boots it in a VM as a USB stick, with two empty disks (64 GB, 500 GB)
+test/vm.sh --window    # same, in a window you can click through
 test/vm.sh --disk      # boots the installed VM
 ```
-
-Container images are cached in `build/images`. Use `REFRESH_IMAGES=1 ./build.sh` to fetch new versions.
 
 ## Security notes
 
