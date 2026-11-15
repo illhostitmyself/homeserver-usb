@@ -66,6 +66,11 @@ def main():
     q = QMP()
     op = sys.argv[1]
     if op == "shot":
+        # cage only repaints damaged areas, which QEMU's screendump can miss; a mouse nudge forces a frame.
+        for x, y in ((0, 0), (32767, 0), (32767, 32767), (0, 32767), (16383, 16383)):
+            q.cmd("input-send-event", events=[{"type": "abs", "data": {"axis": "x", "value": x}},
+                                              {"type": "abs", "data": {"axis": "y", "value": y}}])
+            time.sleep(0.3)
         q.cmd("screendump", filename=str(Path(sys.argv[2]).resolve()), format="png")
     elif op == "click":
         x, y = int(sys.argv[2]), int(sys.argv[3])

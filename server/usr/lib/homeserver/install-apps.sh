@@ -12,6 +12,7 @@ systemd-run --quiet --unit=homeserver-install-docker --collect \
   dockerd --data-root "$root/var/lib/docker" --exec-root /run/homeserver-docker --pidfile /run/homeserver-docker.pid
 trap 'systemctl stop homeserver-install-docker' EXIT
 for _ in $(seq 60); do docker info >/dev/null 2>&1 && break; sleep 1; done
+docker info >/dev/null || { echo "Docker didn't start" >&2; exit 1; }
 
 for name in $IMAGES; do
   echo "Loading $name"

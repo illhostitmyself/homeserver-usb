@@ -28,7 +28,7 @@ for d in nvme sata; do
 done
 
 args=(
-  -enable-kvm -cpu host -smp 4 -m 3072 -machine q35
+  -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
   -device virtio-vga -device qemu-xhci -device usb-tablet -device usb-kbd
   -display none -vnc 127.0.0.1:7
   -qmp "unix:$state/qmp.sock,server,nowait"

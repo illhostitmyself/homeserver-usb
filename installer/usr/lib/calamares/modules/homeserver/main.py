@@ -19,16 +19,33 @@ def pretty_name():
     return "Saving your choices"
 
 
+MARKER = "homeserver-app-"
+
+
+def package_name(entry):
+    return entry.get("package", "") if isinstance(entry, dict) else str(entry)
+
+
 def chosen_apps(gs):
-    raw = gs.value("packagechooser_apps")
-    if raw is None:
-        for key in gs.keys():
-            if key.startswith("packagechooser_"):
-                raw = gs.value(key)
-    if isinstance(raw, str):
-        apps = {a.strip() for a in raw.split(",") if a.strip()}
-    else:
-        apps = set(raw or [])
+    """Reads the ticked apps from netinstall's package list and removes the markers from it."""
+    apps = set()
+    operations = []
+    for op in gs.value("packageOperations") or []:
+        kept = {}
+        for action, entries in op.items():
+            if not isinstance(entries, list):
+                kept[action] = entries
+                continue
+            for entry in entries:
+                if package_name(entry).startswith(MARKER):
+                    apps.add(package_name(entry)[len(MARKER):])
+            rest = [e for e in entries if not package_name(e).startswith(MARKER)]
+            if rest:
+                kept[action] = rest
+        if any(isinstance(v, list) for v in kept.values()):
+            operations.append(kept)
+    gs.insert("packageOperations", operations)
+
     if "requests" in apps:
         apps |= {"jellyfin", "downloads"}
     return sorted(a for a in apps if a in APP_IMAGES)

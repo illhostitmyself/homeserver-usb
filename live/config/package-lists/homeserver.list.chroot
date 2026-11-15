@@ -20,6 +20,7 @@ fonts-dejavu
 
 # Apps and server tools
 docker.io
+docker-cli
 docker-compose
 cockpit-bridge
 cockpit-ws
