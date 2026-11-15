@@ -14,35 +14,37 @@ download and set themselves up the first time it starts with a connection.
 ## What you get
 
 Every app has its own checkbox in the installer, and all of them are ticked by default. Apps that
-another app needs are added automatically (Seerr adds Jellyfin; Sonarr, Radarr, Chaptarr and Flood
-add qBittorrent).
+another app needs are added automatically (Seerr adds Jellyfin; Sonarr, Radarr and Chaptarr add
+qBittorrent if no downloader is ticked). Homepage is always installed.
 
 | App | What it's for |
 |---|---|
-| [Homepage](https://gethomepage.dev) | The dashboard, shown full screen on the server and on `http://homeserver.local`. Apps appear on it through Docker labels, with live status |
+| [Homepage](https://gethomepage.dev) | The dashboard, shown full screen on the server and on `http://homeserver.local`. Apps appear on it through Docker labels, with live status, and open in a new tab |
 | [File Browser](https://filebrowser.org) | Browse, upload and download files from a browser |
 | Shared folder | A Samba share (`\\homeserver\Media`) that shows up on Windows and Mac |
 | [Jellyfin](https://jellyfin.org) | Movies and shows, with the libraries already created |
 | [Seerr](https://github.com/seerr-team/seerr) | Request a movie or show; signed in through Jellyfin and linked to Sonarr and Radarr |
 | [Audiobookshelf](https://www.audiobookshelf.org) | Audiobooks, ebooks and podcasts, with the libraries already created |
-| Sonarr, Radarr, [Chaptarr](https://hub.docker.com/r/chaptarr/chaptarr) | TV, movies, and books/audiobooks, each linked to qBittorrent with its own category |
+| Sonarr, Radarr, [Chaptarr](https://hub.docker.com/r/chaptarr/chaptarr) | TV, movies, and books/audiobooks, each linked to every installed downloader with its own category |
 | Prowlarr | Download sources, shared with Sonarr, Radarr and Chaptarr |
 | Bazarr | Subtitles, linked to Sonarr and Radarr |
 | [Recyclarr](https://recyclarr.dev) | Keeps Sonarr and Radarr on the TRaSH Guides profiles |
-| qBittorrent, [Flood](https://flood.js.org) | The downloader, and a friendlier page for it |
+| qBittorrent | Torrent downloader |
+| [SABnzbd](https://sabnzbd.org) | Usenet downloader; you add your own Usenet provider |
 
 Always installed: [Cockpit](https://cockpit-project.org) for server settings (port 9090: updates,
 disks, restart, shut down) and automatic security updates.
 
 Every app is configured during the install, and all of them use the **name and password typed in the
-installer**. The only thing left to do is add your indexers in Prowlarr.
+installer**. The only things left to do are adding your indexers in Prowlarr and, for Usenet, your
+provider in SABnzbd.
 
 The download setup follows the [TRaSH Guides](https://trash-guides.info):
 
 - One `/data` folder shared by every app, so finished downloads are hardlinked into the library
-  instead of copied: `/srv/data/torrents/{movies,tv,books,audiobooks}` for qBittorrent and
+  instead of copied: `/srv/data/torrents/...` for qBittorrent, `/srv/data/usenet/...` for SABnzbd and
   `/srv/data/media/...` for the libraries.
-- qBittorrent uses automatic torrent management with one category per app.
+- qBittorrent (automatic torrent management) and SABnzbd use one category per media type.
 - Sonarr and Radarr have hardlinks, subtitle import and "do not prefer" propers. Recyclarr syncs the
   TRaSH WEB-1080p (Sonarr) and HD Bluray + WEB (Radarr) profiles, custom formats and the Jellyfin
   naming schemes daily, and Seerr requests use those profiles.

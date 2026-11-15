@@ -15,7 +15,7 @@ Page {
         "Jellyfin": [326, 894, 206], "Seerr": [140, 503, 228], "Audiobookshelf": [125, 360, 119],
         "Sonarr": [83, 205, 120], "Radarr": [86, 213, 101], "Chaptarr": [368, 1030, 132],
         "Prowlarr": [77, 187, 114], "Bazarr": [149, 442, 181], "Recyclarr": [45, 130, 12],
-        "qBittorrent": [97, 231, 35], "Flood": [96, 249, 218]
+        "qBittorrent": [97, 231, 35], "SABnzbd": [66, 185, 67]
     })
     property var drives: []
     property var apps: []

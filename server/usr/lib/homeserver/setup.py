@@ -56,7 +56,8 @@ class Context:
         self.uid, self.gid = self.lookup_owner()
         self.host = (self.root / "etc/hostname").read_text().strip() + ".local"
         self.secrets = read_env(self.etc / "secrets.env")
-        for name in ("SONARR_KEY", "RADARR_KEY", "PROWLARR_KEY", "CHAPTARR_KEY", "BAZARR_KEY"):
+        for name in ("SONARR_KEY", "RADARR_KEY", "PROWLARR_KEY", "CHAPTARR_KEY", "BAZARR_KEY", "SABNZBD_KEY",
+                     "SABNZBD_NZB_KEY"):
             self.secrets.setdefault(name, secrets.token_hex(16))
         self.save_secrets()
 
@@ -217,18 +218,39 @@ radarr:
 """
 
 
+def sabnzbd_config(ctx):
+    # TRaSH Guides layout: incomplete downloads apart, finished ones in one folder per category.
+    # host_whitelist lists the names it's reached by; IP addresses always work.
+    s = ctx.secrets
+    names = ", ".join(["sabnzbd", "localhost", ctx.host, ctx.host.split(".")[0]])
+    categories = "".join(f"[[{c}]]\nname = {c}\ndir = {c}\npriority = -100\npp = \"\"\nscript = Default\n"
+                         for c in CATEGORIES)
+    return f"""[misc]
+api_key = {s["SABNZBD_KEY"]}
+nzb_key = {s["SABNZBD_NZB_KEY"]}
+username = {ctx.user}
+password = {ctx.password}
+html_login = 1
+host_whitelist = {names}
+download_dir = /data/usenet/incomplete
+complete_dir = /data/usenet/complete
+permissions = 775
+[categories]
+{categories}"""
+
+
 CATEGORIES = {"movies": "movies", "tv": "tv", "books": "books", "audiobooks": "audiobooks"}
 ARRS = {"sonarr": 8989, "radarr": 7878, "prowlarr": 9696, "chaptarr": 8789}
 
 
 def prepare(ctx):
     ctx.password  # fails early if the installer didn't leave one
-    for d in [f"torrents/{c}" for c in CATEGORIES] + [f"media/{m}" for m in
-                                                      ("movies", "tv", "books", "audiobooks", "podcasts")]:
+    for d in ([f"torrents/{c}" for c in CATEGORIES] + [f"usenet/complete/{c}" for c in CATEGORIES] +
+              ["usenet/incomplete"] + [f"media/{m}" for m in ("movies", "tv", "books", "audiobooks", "podcasts")]):
         ctx.mkdir(ctx.data / d)
-    ctx.own(ctx.srv, ctx.data, ctx.data / "torrents", ctx.data / "media")
+    ctx.own(ctx.srv, ctx.data, ctx.data / "torrents", ctx.data / "usenet", ctx.data / "usenet/complete", ctx.data / "media")
     for d in ("homepage", "filebrowser/database", "filebrowser/config", "jellyfin", "seerr", "bazarr/config",
-              "audiobookshelf/config", "audiobookshelf/metadata", "flood", "recyclarr", "qbittorrent/qBittorrent",
+              "audiobookshelf/config", "audiobookshelf/metadata", "sabnzbd", "recyclarr", "qbittorrent/qBittorrent",
               *ARRS):
         ctx.mkdir(ctx.appdata / d)
     ctx.own(ctx.appdata / "filebrowser", ctx.appdata / "qbittorrent", ctx.appdata / "bazarr",
@@ -243,6 +265,10 @@ def prepare(ctx):
         ctx.write(qbt / "qBittorrent.conf", qbittorrent_config(ctx.user, ctx.password))
         ctx.write(qbt / "categories.json", json.dumps(
             {c: {"save_path": f"/data/torrents/{c}"} for c in CATEGORIES}, indent=2))
+    sab = ctx.appdata / "sabnzbd/sabnzbd.ini"
+    if "sabnzbd" in ctx.apps and not sab.exists():
+        ctx.write(sab, sabnzbd_config(ctx))
+        sab.chmod(0o600)
     bazarr = ctx.appdata / "bazarr/config/config.yaml"
     if "bazarr" in ctx.apps and not bazarr.exists():
         ctx.write(bazarr, bazarr_config(ctx))
@@ -277,7 +303,7 @@ def dashboard(ctx):
         "docker.yaml": {"local": {"socket": "/var/run/docker.sock"}},
         "settings.yaml": {
             "title": "Home Server", "theme": "light", "color": "stone", "headerStyle": "clean",
-            "target": "_self", "hideVersion": True, "statusStyle": "dot",
+            "target": "_blank", "hideVersion": True, "statusStyle": "dot",
             "layout": {"Watch": {"style": "row", "columns": 2}, "Downloads": {"style": "row", "columns": 4},
                        "Files": {"style": "row", "columns": 1}, "Server": {"style": "row", "columns": 3}}},
         "widgets.yaml": [
@@ -355,10 +381,15 @@ def connect_arr(ctx, name):
     api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
     categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
                   "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
-    if not api("GET", "/downloadclient"):
-        schema = next(x for x in api("GET", "/downloadclient/schema") if x["implementation"] == "QBittorrent")
-        schema.update(name="qBittorrent", enable=True, priority=1)
-        fill(schema, host="qbittorrent", port=8080, username=ctx.user, password=ctx.password, **categories)
+    have = {c["implementation"] for c in api("GET", "/downloadclient")}
+    clients = {"qbittorrent": ("QBittorrent", "qBittorrent", {"username": ctx.user, "password": ctx.password}),
+               "sabnzbd": ("Sabnzbd", "SABnzbd", {"apiKey": ctx.secrets["SABNZBD_KEY"]})}
+    for app, (impl, label, login) in clients.items():
+        if app not in ctx.apps or impl in have:
+            continue
+        schema = next(x for x in api("GET", "/downloadclient/schema") if x["implementation"] == impl)
+        schema.update(name=label, enable=True, priority=1)
+        fill(schema, host=app, port=8080, **login, **categories)
         api("POST", "/downloadclient?forceSave=true", schema)
 
     if not api("GET", "/rootfolder"):
@@ -422,16 +453,6 @@ def connect_audiobookshelf(ctx):
         ctx.save_secrets()
 
 
-def connect_flood(ctx):
-    base = "http://localhost:3030/api"
-    wait(base + "/auth/verify")
-    if call("GET", base + "/auth/verify", allow_error=True).get("initialUser"):
-        call("POST", base + "/auth/register", {
-            "username": ctx.user, "password": ctx.password, "level": 10,
-            "client": {"client": "qBittorrent", "type": "web", "version": 1, "url": "http://qbittorrent:8080",
-                       "username": ctx.user, "password": ctx.password}})
-
-
 def connect_jellyfin(ctx):
     base = "http://localhost:8096"
     wait(base + "/health")
@@ -466,11 +487,13 @@ def connect_jellyfin(ctx):
 def connect(ctx):
     if "qbittorrent" in ctx.apps:
         wait("http://localhost:8080")
+    if "sabnzbd" in ctx.apps:
+        wait("http://localhost:8090")
     for name in ("sonarr", "radarr", "chaptarr"):
         if name in ctx.apps:
             connect_arr(ctx, name)
     steps = {"prowlarr": connect_prowlarr, "jellyfin": connect_jellyfin,
-             "audiobookshelf": connect_audiobookshelf, "flood": connect_flood}
+             "audiobookshelf": connect_audiobookshelf}
     for name, step in steps.items():
         if name in ctx.apps:
             step(ctx)

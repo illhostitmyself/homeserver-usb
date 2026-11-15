@@ -22,7 +22,7 @@ APPS = {
     "Bazarr": "bazarr",
     "Recyclarr": "recyclarr",
     "qBittorrent": "qbittorrent",
-    "Flood": "flood",
+    "SABnzbd": "sabnzbd",
     "Shared folder": "files",
 }
 # Extra drives are listed as "<model>, <size> (/dev/...)".
@@ -35,17 +35,17 @@ FIXED = {"Cockpit", "Automatic security updates"}
 # app -> apps it can't work without
 NEEDS = {
     "seerr": ["jellyfin"],
-    "sonarr": ["qbittorrent"],
-    "radarr": ["qbittorrent"],
-    "chaptarr": ["qbittorrent"],
-    "flood": ["qbittorrent"],
 }
-# app -> it needs at least one of these; if none was picked, all of them are added
+# app -> (it needs at least one of these, what gets added if none was picked)
+DOWNLOADERS = ["qbittorrent", "sabnzbd"]
 NEEDS_ONE_OF = {
-    "seerr": ["sonarr", "radarr"],
-    "bazarr": ["sonarr", "radarr"],
-    "recyclarr": ["sonarr", "radarr"],
-    "prowlarr": ["sonarr", "radarr", "chaptarr"],
+    "sonarr": (DOWNLOADERS, ["qbittorrent"]),
+    "radarr": (DOWNLOADERS, ["qbittorrent"]),
+    "chaptarr": (DOWNLOADERS, ["qbittorrent"]),
+    "seerr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
+    "bazarr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
+    "recyclarr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
+    "prowlarr": (["sonarr", "radarr", "chaptarr"], ["sonarr", "radarr"]),
 }
 
 
@@ -91,9 +91,9 @@ def resolve(apps):
         before = set(apps)
         for app in list(apps):
             apps.update(NEEDS.get(app, []))
-            options = NEEDS_ONE_OF.get(app)
+            options, fallback = NEEDS_ONE_OF.get(app, ([], []))
             if options and not apps.intersection(options):
-                apps.update(options)
+                apps.update(fallback)
         changed = apps != before
     return sorted(apps)
 

@@ -2,7 +2,8 @@
 # (/etc/homeserver/homeserver.env). Images are pulled during install, or on first boot if offline.
 # SRV is /srv, except during install when the new disk is mounted somewhere else.
 # Folder layout follows the TRaSH Guides: one /data mount so imports are instant hardlinks.
-#   /data/torrents/{movies,tv,books}               qBittorrent downloads, by category
+#   /data/torrents/{movies,tv,books,audiobooks}    qBittorrent downloads, by category
+#   /data/usenet/{incomplete,complete/...}         SABnzbd downloads, by category
 #   /data/media/{movies,tv,books,audiobooks,podcasts}  the libraries
 # The homepage.* labels put each app on the dashboard.
 name: homeserver
@@ -191,22 +192,23 @@ services:
       homepage.href: http://${HOMESERVER_HOST}:8789
       homepage.description: Chaptarr
 
-  flood:
-    image: jesec/flood:latest
-    profiles: [flood]
-    restart: unless-stopped
-    user: "${PUID}:${PGID}"
-    command: ["--rundir=/config", "--allowedpath=/data"]
-    ports: ["3030:3000"]
+  sabnzbd:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/sabnzbd:latest
+    profiles: [sabnzbd]
+    ports: ["8090:8080"]
     volumes:
-      - ${SRV}/appdata/flood:/config
+      - ${SRV}/appdata/sabnzbd:/config
       - ${SRV}/data:/data
     labels:
       homepage.group: Downloads
-      homepage.name: Downloads (Flood)
-      homepage.icon: flood.png
-      homepage.href: http://${HOMESERVER_HOST}:3030
-      homepage.description: A friendlier view of qBittorrent
+      homepage.name: Usenet downloads
+      homepage.icon: sabnzbd.png
+      homepage.href: http://${HOMESERVER_HOST}:8090
+      homepage.description: SABnzbd. Add your Usenet provider here
+      homepage.widget.type: sabnzbd
+      homepage.widget.url: http://sabnzbd:8080
+      homepage.widget.key: ${SABNZBD_KEY}
 
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:latest
