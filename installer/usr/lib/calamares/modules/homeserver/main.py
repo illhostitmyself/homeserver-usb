@@ -133,4 +133,6 @@ def run():
             f.write("\n[Media]\n   path = /srv/data/media\n   valid users = {}\n   read only = no\n".format(user))
 
     shutil.rmtree(os.path.join(root, "etc/calamares"), ignore_errors=True)
+    # Tells installer-scale.sh (on the live system) to power off when the installer closes.
+    write("/run/homeserver/installed", "")
     return None

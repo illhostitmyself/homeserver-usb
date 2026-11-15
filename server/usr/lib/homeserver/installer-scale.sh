@@ -4,4 +4,7 @@
 height=$(head -qn1 /sys/class/drm/card*-*/modes 2>/dev/null | cut -dx -f2 | sort -n | tail -1)
 scale=$(awk -v h="${height:-768}" 'BEGIN { s = int(h / 720 * 4) / 4; if (s < 1) s = 1; if (s > 2) s = 2; print s }')
 export QT_SCALE_FACTOR=$scale
-exec /usr/bin/calamares "$@"
+/usr/bin/calamares "$@"
+if [[ -e /run/homeserver/installed ]]; then
+  systemctl poweroff
+fi

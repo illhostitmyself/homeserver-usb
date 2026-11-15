@@ -282,7 +282,7 @@ def dashboard(ctx):
                        "Files": {"style": "row", "columns": 1}, "Server": {"style": "row", "columns": 3}}},
         "widgets.yaml": [
             {"greeting": {"text_size": "2xl", "text": "Home Server"}},
-            {"resources": {"cpu": True, "memory": True, "disk": "/srv"}},
+            {"resources": {"cpu": True, "memory": True, "disk": "/srv/data"}},
             {"datetime": {"text_size": "xl", "format": {"dateStyle": "long", "timeStyle": "short"}}}],
         "bookmarks.yaml": [],
     }
