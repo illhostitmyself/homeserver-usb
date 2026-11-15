@@ -67,7 +67,8 @@ def main():
     op = sys.argv[1]
     if op == "shot":
         # cage only repaints damaged areas, which QEMU's screendump can miss; a mouse nudge forces a frame.
-        for x, y in ((0, 0), (32767, 0), (32767, 32767), (0, 32767), (16383, 16383)):
+        # Ends in the bottom-left corner so the pointer stays out of the picture.
+        for x, y in ((0, 0), (32767, 0), (32767, 32767), (16383, 16383), (0, 32767)):
             q.cmd("input-send-event", events=[{"type": "abs", "data": {"axis": "x", "value": x}},
                                               {"type": "abs", "data": {"axis": "y", "value": y}}])
             time.sleep(0.3)

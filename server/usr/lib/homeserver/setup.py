@@ -314,6 +314,19 @@ def dashboard(ctx):
     }
     for name, data in files.items():
         ctx.write(ctx.appdata / "homepage" / name, json.dumps(data, indent=2) + "\n")
+    ctx.write(ctx.appdata / "homepage/custom.js", RELOAD_ON_ERRORS)
+
+
+# Right after boot some apps are still starting and answer with errors, and Homepage widgets don't
+# retry. Reload the page a minute later while any widget shows an error (at most 10 times per tab).
+RELOAD_ON_ERRORS = """setInterval(() => {
+  const reloads = Number(sessionStorage.getItem("homeserver-reloads") || 0);
+  if (reloads < 10 && document.body.innerText.includes("API Error")) {
+    sessionStorage.setItem("homeserver-reloads", reloads + 1);
+    location.reload();
+  }
+}, 60000);
+"""
 
 
 # --- connect -------------------------------------------------------------------------------

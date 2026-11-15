@@ -43,8 +43,15 @@ Page {
     }
     function gb(mb) { return (Math.max(mb, 100) / 1024).toFixed(1) + " GB"; }
 
-    onVisibleChanged: if (visible) refresh()
-    Component.onCompleted: refresh()
+    // The page is created at startup and never told when it's shown, and the checklists only
+    // publish their choices when you leave them, so it re-reads them every second.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: true
+        triggeredOnStart: true
+        onTriggered: page.refresh()
+    }
 
     ScrollView {
         anchors.fill: parent
