@@ -1,0 +1,19 @@
+{
+  "policies": {
+    "DisableTelemetry": true,
+    "DisableFirefoxStudies": true,
+    "DisablePocket": true,
+    "DontCheckDefaultBrowser": true,
+    "NoDefaultBookmarks": true,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "Homepage": { "URL": "http://localhost/", "StartPage": "homepage" },
+    "FirefoxHome": { "SponsoredTopSites": false, "SponsoredPocket": false },
+    "UserMessaging": { "WhatsNew": false, "ExtensionRecommendations": false, "FeatureRecommendations": false,
+                       "SkipOnboarding": true, "MoreFromMozilla": false },
+    "Preferences": {
+      "layout.css.devPixelsPerPx": { "Value": "1.25", "Status": "default" },
+      "browser.sessionstore.resume_from_crash": { "Value": false, "Status": "default" }
+    }
+  }
+}

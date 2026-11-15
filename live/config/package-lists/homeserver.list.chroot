@@ -1,0 +1,55 @@
+# Installer (removed from the installed system by Calamares)
+calamares
+calamares-settings-debian
+qt6-wayland
+live-boot
+live-config
+live-config-systemd
+rsync
+squashfs-tools
+dosfstools
+e2fsprogs
+fdisk
+parted
+
+# Screen: a full-screen browser showing the dashboard
+cage
+firefox-esr
+fonts-dejavu
+
+# Apps and server tools
+docker.io
+docker-compose
+cockpit-bridge
+cockpit-ws
+cockpit-system
+cockpit-storaged
+cockpit-networkmanager
+cockpit-packagekit
+samba
+wsdd2
+avahi-daemon
+libnss-mdns
+network-manager
+openssh-server
+unattended-upgrades
+sudo
+python3
+curl
+zstd
+ca-certificates
+
+# Base system
+locales
+keyboard-configuration
+console-setup
+tzdata
+systemd-timesyncd
+
+# Hardware support
+firmware-realtek
+firmware-misc-nonfree
+firmware-amd-graphics
+firmware-intel-graphics
+intel-microcode
+amd64-microcode

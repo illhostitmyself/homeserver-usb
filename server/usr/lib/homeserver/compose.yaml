@@ -1,0 +1,82 @@
+# Apps are switched on with COMPOSE_PROFILES (set by the installer in /etc/homeserver/homeserver.env).
+# Everything shares /srv/media as /data, so downloads move into the libraries instantly.
+name: homeserver
+
+x-linuxserver: &linuxserver
+  restart: unless-stopped
+  environment: &env
+    PUID: ${PUID}
+    PGID: ${PGID}
+    TZ: ${TZ}
+
+services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:latest
+    restart: unless-stopped
+    ports: ["80:3000"]
+    environment:
+      HOMEPAGE_ALLOWED_HOSTS: "*"
+      PUID: ${PUID}
+      PGID: ${PGID}
+    volumes:
+      - /srv/homeserver/homepage:/app/config
+      - /srv/media:/srv/media:ro
+
+  jellyfin:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/jellyfin:latest
+    profiles: [jellyfin]
+    ports: ["8096:8096"]
+    volumes:
+      - /srv/homeserver/jellyfin:/config
+      - /srv/media:/data
+
+  sonarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/sonarr:latest
+    profiles: [downloads]
+    ports: ["8989:8989"]
+    volumes:
+      - /srv/homeserver/sonarr:/config
+      - /srv/media:/data
+
+  radarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/radarr:latest
+    profiles: [downloads]
+    ports: ["7878:7878"]
+    volumes:
+      - /srv/homeserver/radarr:/config
+      - /srv/media:/data
+
+  prowlarr:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/prowlarr:latest
+    profiles: [downloads]
+    ports: ["9696:9696"]
+    volumes:
+      - /srv/homeserver/prowlarr:/config
+
+  qbittorrent:
+    <<: *linuxserver
+    image: lscr.io/linuxserver/qbittorrent:latest
+    profiles: [downloads]
+    environment:
+      <<: *env
+      WEBUI_PORT: 8080
+    ports: ["8080:8080", "6881:6881", "6881:6881/udp"]
+    volumes:
+      - /srv/homeserver/qbittorrent:/config
+      - /srv/media:/data
+
+  seerr:
+    image: ghcr.io/seerr-team/seerr:latest
+    profiles: [requests]
+    restart: unless-stopped
+    init: true
+    user: "${PUID}:${PGID}"
+    environment:
+      TZ: ${TZ}
+    ports: ["5055:5055"]
+    volumes:
+      - /srv/homeserver/seerr:/app/config

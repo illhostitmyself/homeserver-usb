@@ -1,0 +1,8 @@
+# file name     image (bundled on the USB stick, loaded on first boot)
+homepage        ghcr.io/gethomepage/homepage:latest
+jellyfin        lscr.io/linuxserver/jellyfin:latest
+sonarr          lscr.io/linuxserver/sonarr:latest
+radarr          lscr.io/linuxserver/radarr:latest
+prowlarr        lscr.io/linuxserver/prowlarr:latest
+qbittorrent     lscr.io/linuxserver/qbittorrent:latest
+seerr           ghcr.io/seerr-team/seerr:latest

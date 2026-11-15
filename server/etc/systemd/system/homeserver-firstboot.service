@@ -1,0 +1,15 @@
+[Unit]
+Description=Home Server first-start setup
+ConditionKernelCommandLine=!boot=live
+ConditionPathExists=!/var/lib/homeserver/setup-done
+Wants=network-online.target docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/lib/homeserver/firstboot.sh
+TimeoutStartSec=1h
+
+[Install]
+WantedBy=multi-user.target

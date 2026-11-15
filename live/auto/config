@@ -1,0 +1,16 @@
+#!/bin/sh
+set -e
+lb config noauto \
+  --distribution trixie \
+  --archive-areas "main non-free-firmware" \
+  --binary-images iso-hybrid \
+  --debian-installer none \
+  --apt-recommends false \
+  --firmware-binary false \
+  --firmware-chroot false \
+  --memtest none \
+  --chroot-squashfs-compression-type xz \
+  --iso-application "Home Server Installer" \
+  --iso-volume "HOMESERVER" \
+  --bootappend-live "boot=live components quiet splash hostname=homeserver-setup" \
+  "$@"

@@ -1,0 +1,13 @@
+#!/bin/sh
+CHROOT=$(mount | grep proc | grep calamares | awk '{print $3}' | sed -e "s#/proc##g")
+export DEBIAN_FRONTEND=noninteractive
+if [ -d /sys/firmware/efi/efivars ]; then
+    chroot "$CHROOT" apt-get -y install grub-efi-amd64 grub-efi-amd64-signed shim-signed || exit 1
+else
+    chroot "$CHROOT" apt-get -y install grub-pc || exit 1
+fi
+cat >> "$CHROOT/etc/default/grub" <<'GRUB'
+GRUB_TIMEOUT=2
+GRUB_DISTRIBUTOR="Home Server"
+GRUB
+chroot "$CHROOT" /usr/sbin/update-grub

@@ -1,0 +1,37 @@
+---
+componentName: homeserver
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+windowExpanding: fullscreen
+windowSize: 1024px,700px
+windowPlacement: center
+sidebar: widget
+navigation: widget
+
+strings:
+  productName: "Home Server"
+  shortProductName: "Home Server"
+  version: "1"
+  shortVersion: "1"
+  versionedName: "Home Server"
+  shortVersionedName: "Home Server"
+  bootloaderEntryName: "Home Server"
+  productUrl: "https://github.com/illhostitmyself/homeserver-usb"
+  supportUrl: ""
+  knownIssuesUrl: ""
+  releaseNotesUrl: ""
+  donateUrl: ""
+
+images:
+  productLogo: "logo.png"
+  productIcon: "logo.png"
+  productWelcome: "welcome.png"
+
+slideshow: "show.qml"
+slideshowAPI: 1
+
+style:
+  SidebarBackground: "#2f5d62"
+  SidebarText: "#f4efe6"
+  SidebarTextCurrent: "#2f5d62"
+  SidebarBackgroundCurrent: "#f4efe6"
