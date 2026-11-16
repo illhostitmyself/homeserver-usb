@@ -8,6 +8,7 @@
 #   test/vm.sh --disk     boot the installed system (stick unplugged)
 #   test/vm.sh --reset    wipe the VM disks first
 #   test/vm.sh --window   show the VM in a window instead of headless
+#   test/vm.sh --iso F    boot F instead of out/homeserver-usb.iso (e.g. an older release)
 #   test/vm.sh --extra 3  three small (16 GB) SATA disks instead of the 500 GB one, to test pooling.
 #                         Pass the same --extra when booting the installed system with --disk.
 set -euo pipefail
@@ -15,11 +16,12 @@ cd "$(dirname "$0")/.."
 state=build/vm
 mkdir -p "$state"
 
-firmware=uefi net=1 stick=1 display=none extra=0
+firmware=uefi net=1 stick=1 display=none extra=0 iso=out/homeserver-usb.iso
 while (( $# )); do
   arg=$1; shift
   case $arg in
     --extra) extra=$1; shift ;;
+    --iso) iso=$1; shift ;;
     --bios) firmware=bios ;;
     --offline) net=0 ;;
     --disk) stick=0 ;;
@@ -60,7 +62,7 @@ if [[ $firmware == uefi ]]; then
          -drive "if=pflash,format=raw,file=$state/OVMF_VARS.fd")
 fi
 if (( stick )); then
-  args+=(-drive "if=none,id=stick,format=raw,readonly=on,file=out/homeserver-usb.iso"
+  args+=(-drive "if=none,id=stick,format=raw,readonly=on,file=$iso"
          -device "usb-storage,drive=stick,bootindex=0")
 fi
 if (( net )); then

@@ -1,0 +1,5 @@
+---
+type: "job"
+name: "homeserverupdate"
+interface: "python"
+script: "main.py"

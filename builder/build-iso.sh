@@ -17,6 +17,12 @@ sed -i 's/^timeout 0$/timeout 50/' config/bootloaders/isolinux/isolinux.cfg
 overlay=config/includes.chroot_after_packages
 mkdir -p "$overlay"
 cp -a /src/installer/. /src/server/. "$overlay/"
+# What update-system.sh copies onto an installed server, and what it checks for.
+share=$overlay/usr/share/homeserver
+mkdir -p "$share"
+(cd /src/server && find . -type f -printf '%P\n' | sort) > "$share/server-files"
+cp /src/live/config/package-lists/homeserver.list.chroot "$share/packages.list"
+echo "${VERSION:-unknown}" > "$share/version"
 chown -R root:root "$overlay"
 
 lb build

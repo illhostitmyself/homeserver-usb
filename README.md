@@ -79,6 +79,16 @@ The [step-by-step guide with screenshots](docs/install-guide.md) walks through a
 
 Needs a 64-bit PC with 4 GB of RAM and a 64 GB disk.
 
+## Updating
+
+To bring a server you already installed up to a newer version, flash the new
+`homeserver-usb.iso` and boot the server from it, the same way as for an install. The stick finds
+Home Server on the disk and offers to update it: click **Next**. Nothing is erased; your apps, their
+settings, your name and password, and your files stay as they are. It adds the system packages the
+new version needs (this needs the internet), replaces the Home Server scripts, and the apps download
+their newest versions the next time the server starts. Click **Cancel** on that page to erase the
+disk and install from scratch instead.
+
 ## How it works
 
 - `live/` is a [live-build](https://live-team.pages.debian.net/live-manual/) config for a Debian 13

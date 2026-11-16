@@ -143,6 +143,14 @@ password. Skip this if you don't have a Usenet provider.
 
 ![SABnzbd](screenshots/step-sabnzbd.png)
 
+## Updating later
+
+When a new version comes out, flash it to the USB stick and start the server from it, as in step 2.
+Instead of the installer you see **Home Server is already on this computer**, with your disk and apps.
+Click **Next** to update; nothing is erased. When it says **Your server is up to date**, take out the
+USB stick and click **Done**. (Click **Cancel** on the first page only if you want to erase everything
+and install from scratch.)
+
 ## Where things are
 
 | On the dashboard | What it's for |
