@@ -116,7 +116,10 @@ browser can remember them.
 | | |
 |---|---|
 | ![Jellyfin](screenshots/app-jellyfin.png) | ![Sonarr](screenshots/app-sonarr.png) |
-| ![File Browser](screenshots/app-filebrowser.png) | ![Server settings](screenshots/app-cockpit.png) |
+| ![Audiobookshelf](screenshots/app-audiobookshelf.png) | ![Chaptarr](screenshots/app-chaptarr.png) |
+| ![Bazarr](screenshots/app-bazarr.png) | ![qBittorrent](screenshots/app-qbittorrent.png) |
+| ![SABnzbd](screenshots/app-sabnzbd.png) | ![File Browser](screenshots/app-filebrowser.png) |
+| ![Server settings](screenshots/app-cockpit.png) | |
 
 ## 7. The two things left to do
 
@@ -142,6 +145,6 @@ password. Skip this if you don't have a Usenet provider.
 | Request a movie or show (Seerr) | Ask for something by name; it's found and downloaded for you |
 | Audiobooks & podcasts | Listen here or with the Audiobookshelf phone app |
 | Files | Upload, download and organize files in the browser |
-| Server settings | Updates, disks, restart and shut down |
+| Server settings (Cockpit) | Updates, disks, restart and shut down |
 
 On Windows, the shared folder is at `\\homeserver\Media` in File Explorer.

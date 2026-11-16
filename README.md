@@ -63,6 +63,8 @@ file instead of hardlinking it.
 
 ## Install
 
+The [step-by-step guide with screenshots](docs/install-guide.md) walks through all of it. In short:
+
 1. Download `homeserver-usb.iso` from [Releases](../../releases).
 2. Flash it to a USB stick (8 GB or bigger) with [balenaEtcher](https://etcher.balena.io) or
    [Rufus](https://rufus.ie). If Rufus asks, choose **DD Image mode**.
@@ -105,6 +107,13 @@ test/vm.sh --disk      # boots the installed VM
 
 This is meant for a home network. The dashboard has no login, and everything uses plain HTTP.
 Don't forward these ports to the internet.
+
+## Known issues
+
+- Firefox on the server's screen shows "This connection is not secure" under login forms. Every app
+  is plain HTTP inside the home network, so it's expected; click anywhere to dismiss it.
+- Right after a reboot some dashboard tiles can show "API Error" while their app is still
+  starting. The dashboard reloads itself until they're up.
 
 ## License
 
