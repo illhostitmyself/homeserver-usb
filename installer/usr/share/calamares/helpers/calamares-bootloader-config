@@ -4,6 +4,17 @@ export DEBIAN_FRONTEND=noninteractive
 if [ -d /sys/firmware/efi/efivars ]; then
     chroot "$CHROOT" apt-get -y install grub-efi-amd64 grub-efi-amd64-signed shim-signed || exit 1
 else
+    # BIOS on a GPT disk: GRUB needs a BIOS boot partition to embed itself in. Calamares leaves the
+    # first MiB free but marks it unusable (first-lba 2048), so rewrite the table with it usable
+    # and the partition added; the existing partitions are written back unchanged.
+    DISK=/dev/$(lsblk -no PKNAME "$(findmnt -no SOURCE "$CHROOT")")
+    if [ "$(blkid -s PTTYPE -o value "$DISK")" = gpt ] && [ "$(blockdev --getss "$DISK")" = 512 ] &&
+        ! sfdisk -l "$DISK" | grep -q 'BIOS boot'; then
+        {
+            sfdisk -d "$DISK" | sed 's/^first-lba: .*/first-lba: 34/'
+            echo 'start=34, size=2014, type=21686148-6449-6E6F-744E-656564454649, name=biosgrub'
+        } | sfdisk --force --no-reread "$DISK" || exit 1
+    fi
     chroot "$CHROOT" apt-get -y install grub-pc || exit 1
 fi
 cat >> "$CHROOT/etc/default/grub" <<'GRUB'

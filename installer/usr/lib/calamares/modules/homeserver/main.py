@@ -98,6 +98,24 @@ def resolve(apps):
     return sorted(apps)
 
 
+def boot_disk(gs):
+    """On BIOS, puts GRUB on the disk Home Server is installed to. Calamares defaults to the first disk."""
+    if os.path.isdir("/sys/firmware/efi"):
+        return
+    loader = gs.value("bootLoader")
+    if not loader or not loader.get("installPath"):
+        return
+    for part in gs.value("partitions") or []:
+        if part.get("mountPoint") == "/":
+            sys_path = os.path.realpath("/sys/class/block/" + os.path.basename(part["device"]))
+            disk = "/dev/" + os.path.basename(os.path.dirname(sys_path))
+            if loader["installPath"] != disk:
+                debug("homeserver: boot loader {} -> {}".format(loader["installPath"], disk))
+                loader["installPath"] = disk
+                gs.insert("bootLoader", loader)
+            return
+
+
 def write(path, text, mode=0o644):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w") as f:
@@ -109,6 +127,7 @@ def run():
     gs = libcalamares.globalstorage
     root = gs.value("rootMountPoint")
     user = gs.value("username")
+    boot_disk(gs)
     ticked = take_checklist(gs)
     picked = {APPS[name] for name in ticked if name in APPS} | ALWAYS
     drives = sorted(DRIVE.search(name).group(1) for name in ticked if DRIVE.search(name))
