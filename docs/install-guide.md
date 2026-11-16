@@ -4,7 +4,8 @@ This guide walks through the whole install with pictures. It takes about half an
 waiting. You need:
 
 - the computer that will become the server, with a keyboard, mouse and screen plugged in
-- a network cable from that computer to your internet router
+- a network cable from that computer to your internet router, or your Wi-Fi name and password
+  (a cable is faster and more reliable for streaming)
 - a USB stick of 8 GB or more (everything on it is erased)
 - another computer to prepare the USB stick
 
@@ -27,6 +28,11 @@ which one for a second. Pick the USB stick from the list.
 A black menu appears. You don't need to touch anything: it starts on its own after 5 seconds.
 
 ![Boot menu](screenshots/01-boot-menu.png)
+
+**No network cable?** If the computer has Wi-Fi, a screen asks you to connect first. Press
+**Enter**, use the arrow keys to pick your network, press **Enter**, and type the Wi-Fi password.
+It moves on to the installer by itself once it's connected. The server keeps using that Wi-Fi
+after the install.
 
 ## 3. Answer the installer's questions
 
@@ -83,8 +89,8 @@ start.
 
 ## 4. Wait
 
-The install takes 15 to 30 minutes. Most of that is downloading your apps, so keep the network
-cable plugged in. You don't need to do anything.
+The install takes 15 to 30 minutes. Most of that is downloading your apps, so stay
+connected. You don't need to do anything.
 
 ![Installing](screenshots/12-installing.png)
 

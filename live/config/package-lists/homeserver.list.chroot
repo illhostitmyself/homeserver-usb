@@ -21,6 +21,10 @@ fdisk
 parted
 cracklib-runtime
 
+# Wi-Fi screen shown before the installer when there's no network cable
+foot
+foot-terminfo
+
 # Screen: a full-screen browser showing the dashboard
 cage
 firefox-esr
@@ -42,6 +46,8 @@ wsdd2
 avahi-daemon
 libnss-mdns
 network-manager
+wpasupplicant
+wireless-regdb
 openssh-server
 unattended-upgrades
 sudo
@@ -60,6 +66,10 @@ util-linux-extra
 
 # Hardware support
 firmware-realtek
+firmware-iwlwifi
+firmware-mediatek
+firmware-atheros
+firmware-brcm80211
 firmware-misc-nonfree
 firmware-amd-graphics
 firmware-intel-graphics

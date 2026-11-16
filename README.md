@@ -8,8 +8,8 @@ password. It installs Debian with Docker, sets up the apps you picked, connects 
 and leaves the computer showing a dashboard with everything on it. No terminal at any point.
 
 The stick holds Debian and the installer; the apps are downloaded during the install, so connect
-the computer to your router with a cable. Without internet the system still installs, and the apps
-download and set themselves up the first time it starts with a connection.
+the computer to your router with a cable (best) or Wi-Fi. Without internet the system still
+installs, and the apps download and set themselves up the first time it starts with a connection.
 
 ## What you get
 
@@ -69,7 +69,8 @@ The [step-by-step guide with screenshots](docs/install-guide.md) walks through a
 2. Flash it to a USB stick (8 GB or bigger) with [balenaEtcher](https://etcher.balena.io) or
    [Rufus](https://rufus.ie). If Rufus asks, choose **DD Image mode**.
 3. Plug the stick into the computer that will become the server, connect it to your router with a
-   network cable, and boot from the stick (usually F12, F11 or Esc at power-on).
+   network cable, and boot from the stick (usually F12, F11 or Esc at power-on). No cable? The
+   installer asks for your Wi-Fi first.
 4. Follow the installer. **The disk you pick is erased.**
 5. When it's done the computer turns off. Pull out the stick and turn it back on.
 6. The dashboard opens on the server's screen. From any other device at home, open
