@@ -34,6 +34,12 @@ A black menu appears. You don't need to touch anything: it starts on its own aft
 It moves on to the installer by itself once it's connected. The server keeps using that Wi-Fi
 after the install.
 
+![Wi-Fi](screenshots/02a-wifi.png)
+
+Once it's online, the installer downloads the newest list of apps and their settings from the Home
+Server repository. Without internet it still installs, but only offers the dashboard and Cockpit. To
+get the other apps, connect to the internet and install again.
+
 ## 3. Answer the installer's questions
 
 The installer shows a list of steps on the left. Click **Next** at the bottom right to go forward,
@@ -145,11 +151,37 @@ password. Skip this if you don't have a Usenet provider.
 
 ## Updating later
 
-When a new version comes out, flash it to the USB stick and start the server from it, as in step 2.
-Instead of the installer you see **Home Server is already on this computer**, with your disk and apps.
-Click **Next** to update; nothing is erased. When it says **Your server is up to date**, take out the
-USB stick and click **Done**. (Click **Cancel** on the first page only if you want to erase everything
-and install from scratch.)
+There are two kinds of updates. Neither erases anything.
+
+### Your apps: from the dashboard
+
+The apps' settings and versions come from the Home Server app catalog. When a new catalog is out,
+click **App updates** in the Server row at the bottom of the dashboard.
+
+![App updates tile](screenshots/16-app-updates-tile.png)
+
+Log in with your name and password. The page says whether an update is available; click **Update
+the apps**.
+
+![App updates](screenshots/17-app-updates.png)
+
+It downloads the new catalog, checks that it really comes from Home Server, and moves your apps to
+the new versions. If anything goes wrong, it puts the previous versions back on its own.
+
+![App updates done](screenshots/18-app-updates-done.png)
+
+### The whole server: from a new USB stick
+
+New versions of the USB stick also update the server itself (for example, Wi-Fi support). Flash the
+new version to the USB stick and start the server from it, as in step 2. Instead of the installer
+you see **Home Server is already on this computer**, with your disk and apps. Click **Next**.
+
+![Already installed](screenshots/19-update-found.png)
+
+When it says **Your server is up to date**, take out the USB stick and click **Done**. Click
+**Cancel** on the first page only if you want to erase everything and install from scratch.
+
+![Up to date](screenshots/20-update-done.png)
 
 ## Where things are
 
@@ -160,5 +192,6 @@ and install from scratch.)
 | Audiobooks & podcasts | Listen here or with the Audiobookshelf phone app |
 | Files | Upload, download and organize files in the browser |
 | Server settings (Cockpit) | Updates, disks, restart and shut down |
+| App updates | New versions of your apps, when a new app catalog is out |
 
 On Windows, the shared folder is at `\\homeserver\Media` in File Explorer.

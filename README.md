@@ -7,13 +7,15 @@ point-and-click installer: language, which disk to use, which apps you want, you
 password. It installs Debian with Docker, sets up the apps you picked, connects them to each other,
 and leaves the computer showing a dashboard with everything on it. No terminal at any point.
 
-The stick holds Debian and the installer; the apps are downloaded during the install, so connect
-the computer to your router with a cable (best) or Wi-Fi. Without internet the system still
-installs, and the apps download and set themselves up the first time it starts with a connection.
+The stick holds Debian and the installer. The apps, their settings and the exact version of each
+come from the [app catalog](catalog/) in this repository: the installer downloads the newest signed
+catalog release, and installed servers update from it later with one click. Connect the computer to
+your router with a cable (best) or Wi-Fi. Without internet the system still installs, but with only the
+dashboard and Cockpit; for the other apps, install again with internet.
 
 ## What you get
 
-Every app has its own checkbox in the installer, and all of them are ticked by default. Apps that
+Every app in the catalog has its own checkbox in the installer, and all of them are ticked by default. Apps that
 another app needs are added automatically (Seerr adds Jellyfin; Sonarr, Radarr and Chaptarr add
 qBittorrent if no downloader is ticked). Homepage is always installed.
 
@@ -33,7 +35,12 @@ qBittorrent if no downloader is ticked). Homepage is always installed.
 | [SABnzbd](https://sabnzbd.org) | Usenet downloader; you add your own Usenet provider |
 
 Always installed: [Cockpit](https://cockpit-project.org) for server settings (port 9090: updates,
-disks, restart, shut down) and automatic security updates.
+disks, restart, shut down), a **Home Server apps** page in Cockpit for app updates, and automatic
+security updates. All of them have a tile in the Server row at the bottom of the dashboard.
+
+Each app runs the exact version pinned in [`catalog/compose.yaml`](catalog/compose.yaml) (tag and
+digest), never `latest`. The images come straight from their publishers; a new catalog release is
+what moves them.
 
 Every app is configured during the install, and all of them use the **name and password typed in the
 installer**. The only things left to do are adding your indexers in Prowlarr and, for Usenet, your
@@ -52,7 +59,9 @@ The download setup follows the [TRaSH Guides](https://trash-guides.info):
 ### Disks
 
 The disk you pick is split into EFI, `/boot`, swap, `/` (30%, 20–50 GB), `/home` (10%, 5–10 GB) and
-`/srv` (the rest) for app settings and media. There's also a manual option.
+`/srv` (the rest) for app settings and media. There's also a manual option. The disk always gets a
+GPT partition table; on older computers that boot in BIOS (legacy) mode, a small BIOS boot partition
+is added for GRUB, and GRUB always goes on the disk you picked.
 
 Other drives in the computer can be ticked on the next page. They're **erased** and pooled with the
 main drive's media folder using [mergerfs](https://github.com/trapexit/mergerfs): every drive keeps
@@ -81,13 +90,23 @@ Needs a 64-bit PC with 4 GB of RAM and a 64 GB disk.
 
 ## Updating
 
-To bring a server you already installed up to a newer version, flash the new
-`homeserver-usb.iso` and boot the server from it, the same way as for an install. The stick finds
-Home Server on the disk and offers to update it: click **Next**. Nothing is erased; your apps, their
-settings, your name and password, and your files stay as they are. It adds the system packages the
-new version needs (this needs the internet), replaces the Home Server scripts, and the apps download
-their newest versions the next time the server starts. Click **Cancel** on that page to erase the
-disk and install from scratch instead.
+Nothing is erased by either kind of update: apps, their settings, your name and password, and your
+files stay as they are.
+
+**Apps, from the dashboard.** Click **App updates** on the dashboard (or open Cockpit's **Home Server
+apps** page). When a newer app catalog is out, **Update the apps** downloads it, checks its signature,
+moves the apps to the newly pinned versions and refreshes the dashboard. If that fails, the previous
+catalog is put back.
+
+<img src="docs/screenshots/17-app-updates.png" alt="App updates in Cockpit" width="640">
+
+**The whole server, from a new USB stick.** Flash the new `homeserver-usb.iso` and boot the server
+from it. The stick finds Home Server on the disk and offers to update it instead of reinstalling:
+it adds the system packages the new version needs (needs internet), replaces the Home Server scripts
+and services, and installs the newest app catalog. Click **Cancel** on that page to erase the disk
+and install from scratch instead. This is also how servers from before 0.4.0 get the app catalog.
+
+<img src="docs/screenshots/19-update-found.png" alt="Home Server is already on this computer" width="640">
 
 ## How it works
 
@@ -95,12 +114,18 @@ disk and install from scratch instead.
   live system that boots straight into [Calamares](https://calamares.io), full screen, with no desktop.
 - `installer/` holds the Calamares settings, branding, and a small Python step
   (`usr/lib/calamares/modules/homeserver`) that saves your choices.
-- `server/` is copied onto the installed system. `setup-drives.sh` erases and pools any extra drives.
-  At the end of the install, `install-apps.sh` starts a temporary Docker daemon that writes to the
-  new disk and downloads only the apps you picked.
-  `configure-apps.sh` then has `setup.py` write each app's config (API keys, paths, logins), starts
-  everything with `compose.yaml`, and connects the apps through their APIs. If that fails, the
-  installed system retries it on its first start.
+- `catalog/` is the app catalog: `catalog.json` (the apps, the installer's checklist, which apps
+  need which, download and disk sizes), `compose.yaml` (every app, pinned), `setup.py` and
+  `configure-apps.sh` (configure the apps and connect them through their APIs), and `update.sh`
+  (what a server runs after taking a new catalog). It's published as signed releases and installed
+  on each server in `/var/lib/homeserver/catalog`. The ISO also carries a minimal copy (dashboard and
+  Cockpit only) for installs without internet.
+- `server/` is copied onto the installed system. `catalog.sh` downloads catalog releases and checks
+  their signature. `setup-drives.sh` erases and pools any extra drives. At the end of the install,
+  `install-apps.sh` starts a temporary Docker daemon that writes to the new disk and runs the
+  catalog's `configure-apps.sh` for the apps you picked. If that fails, the installed system retries
+  it on its first start. `update-setup.sh` and `update-system.sh` are the USB stick's update mode;
+  `usr/share/cockpit/homeserver` is the Cockpit page.
 - The screen shows the dashboard in Firefox running under [cage](https://github.com/cage-kiosk/cage).
 
 ## Build it yourself
@@ -112,17 +137,44 @@ You need Docker and about 15 GB of free disk:
 test/vm.sh --reset     # boots it in a VM as a USB stick, with two empty disks (64 GB, 500 GB)
 test/vm.sh --window    # same, in a window you can click through
 test/vm.sh --disk      # boots the installed VM
+test/vm.sh --iso F     # boots another ISO, e.g. an older release, to test updating
 ```
+
+To test a catalog before releasing it, serve a signed `catalog.tar.gz` (and `.sig`) over HTTP and
+point the installer at it with `homeserver.catalog=http://...` on the boot line, or an installed
+server with `/etc/homeserver/catalog-url`. Either way it must be signed by a key in
+`catalog-signers`.
+
+## Releasing the app catalog
+
+Change what you need in `catalog/`, raise `"version"` in `catalog.json`, test it, then:
+
+```bash
+catalog/release.sh ~/path/to/catalog-signing-key
+```
+
+It signs `catalog.tar.gz` with `ssh-keygen -Y sign`, checks the signature against
+`server/usr/share/homeserver/catalog-signers` (the public key every ISO and server trusts), and
+uploads it to two GitHub releases: `catalog-vN`, kept for history, and `catalog`, which installers
+and servers download. It refuses a version that isn't newer than the published one.
 
 ## Security notes
 
 This is meant for a home network. The dashboard has no login, and everything uses plain HTTP.
 Don't forward these ports to the internet.
 
+The app catalog runs as root on every server, so servers only accept a catalog signed with the
+Home Server key, and never one older than what they have. That key is kept offline, not on GitHub;
+taking over the repository isn't enough to push code to servers. Cockpit's app update button can
+run without administrative access because of one sudo rule
+(`/etc/sudoers.d/homeserver-catalog`) that allows exactly `catalog.sh update`, which only installs
+signed releases.
+
 ## Known issues
 
-- Firefox on the server's screen shows "This connection is not secure" under login forms. Every app
-  is plain HTTP inside the home network, so it's expected; click anywhere to dismiss it.
+- Firefox on the server's screen shows "This connection is not secure" under login forms, and it can
+  cover the password box. Every app is plain HTTP inside the home network, so it's expected; click
+  an empty part of the page to dismiss it, then click the box you want to type in.
 - Right after a reboot some dashboard tiles can show "API Error" while their app is still
   starting. The dashboard reloads itself until they're up.
 
