@@ -37,8 +37,9 @@ after the install.
 ![Wi-Fi](screenshots/02a-wifi.png)
 
 Once it's online, the installer downloads the newest list of apps and their settings from the Home
-Server repository. Without internet it still installs, but only offers the dashboard and Cockpit. To
-get the other apps, connect to the internet and install again.
+Server repository. Without internet it still installs, but only offers the dashboard and Cockpit.
+You can add the other apps later from the **Apps** page, once the server is online (see
+[Adding and removing apps](#adding-and-removing-apps)).
 
 ## 3. Answer the installer's questions
 
@@ -149,6 +150,23 @@ password. Skip this if you don't have a Usenet provider.
 
 ![SABnzbd](screenshots/step-sabnzbd.png)
 
+## Adding and removing apps
+
+Click **Apps** in the Server row at the bottom of the dashboard and log in with your name and
+password.
+
+![Apps tile](screenshots/16-apps-tile.png)
+
+Under **Your apps**, tick the apps you want and untick the ones you don't. The page shows what will
+be added and removed, and how much it downloads. Apps another app needs are ticked for you and can't
+be unticked while that app is there. Type your password and click **Apply changes**. New apps get
+your name and password and appear on the dashboard when it's done.
+
+![Add or remove apps](screenshots/21-add-remove-apps.png)
+
+Removing an app keeps its settings, so adding it back later picks up where it left off. Your files,
+downloads and media are never removed.
+
 ## Updating later
 
 There are two kinds of updates. Neither erases anything.
@@ -156,12 +174,8 @@ There are two kinds of updates. Neither erases anything.
 ### Your apps: from the dashboard
 
 The apps' settings and versions come from the Home Server app catalog. When a new catalog is out,
-click **App updates** in the Server row at the bottom of the dashboard.
-
-![App updates tile](screenshots/16-app-updates-tile.png)
-
-Log in with your name and password. The page says whether an update is available; click **Update
-the apps**.
+click **Apps** in the Server row at the bottom of the dashboard and log in. The page says whether an
+update is available; click **Update the apps**.
 
 ![App updates](screenshots/17-app-updates.png)
 
@@ -192,6 +206,6 @@ When it says **Your server is up to date**, take out the USB stick and click **D
 | Audiobooks & podcasts | Listen here or with the Audiobookshelf phone app |
 | Files | Upload, download and organize files in the browser |
 | Server settings (Cockpit) | Updates, disks, restart and shut down |
-| App updates | New versions of your apps, when a new app catalog is out |
+| Apps | Add and remove apps, and install new versions when a new app catalog is out |
 
 On Windows, the shared folder is at `\\homeserver\Media` in File Explorer.

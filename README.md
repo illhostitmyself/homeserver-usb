@@ -9,9 +9,10 @@ and leaves the computer showing a dashboard with everything on it. No terminal a
 
 The stick holds Debian and the installer. The apps, their settings and the exact version of each
 come from the [app catalog](catalog/) in this repository: the installer downloads the newest signed
-catalog release, and installed servers update from it later with one click. Connect the computer to
-your router with a cable (best) or Wi-Fi. Without internet the system still installs, but with only the
-dashboard and Cockpit; for the other apps, install again with internet.
+catalog release, and installed servers add, remove and update apps from it later in the browser.
+Connect the computer to your router with a cable (best) or Wi-Fi. Without internet the system still
+installs, but with only the dashboard and Cockpit; add the other apps later from the **Apps** page once
+it's online.
 
 ## What you get
 
@@ -88,15 +89,29 @@ The [step-by-step guide with screenshots](docs/install-guide.md) walks through a
 
 Needs a 64-bit PC with 4 GB of RAM and a 64 GB disk.
 
+## Adding and removing apps
+
+Click **Apps** on the dashboard (or open Cockpit's **Home Server apps** page) and log in. Under
+**Your apps**, tick an app to add it or untick it to remove it, type your password and click **Apply
+changes**. The same rules as in the installer apply: apps another app needs are added with it and
+can't be unticked while it's there (Seerr keeps Jellyfin), and the always-installed apps stay.
+
+New apps are downloaded at the versions in the server's catalog and set up like in the installer:
+your name and password, and connected to the apps already there. A removed app's container and image
+are deleted and the other apps forget it (Sonarr drops a removed downloader, Prowlarr and Seerr drop
+a removed Sonarr or Radarr). Its settings stay in `/srv/appdata`, so adding it back picks up where it
+left off. Downloads and media are never touched.
+
+<img src="docs/screenshots/21-add-remove-apps.png" alt="Adding and removing apps in Cockpit" width="560">
+
 ## Updating
 
 Nothing is erased by either kind of update: apps, their settings, your name and password, and your
 files stay as they are.
 
-**Apps, from the dashboard.** Click **App updates** on the dashboard (or open Cockpit's **Home Server
-apps** page). When a newer app catalog is out, **Update the apps** downloads it, checks its signature,
-moves the apps to the newly pinned versions and refreshes the dashboard. If that fails, the previous
-catalog is put back.
+**Apps, from the dashboard.** Click **Apps** on the dashboard. When a newer app catalog is out,
+**Update the apps** downloads it, checks its signature, moves the apps to the newly pinned versions
+and refreshes the dashboard. If that fails, the previous catalog is put back.
 
 <img src="docs/screenshots/17-app-updates.png" alt="App updates in Cockpit" width="640">
 
@@ -116,8 +131,8 @@ and install from scratch instead. This is also how servers from before 0.4.0 get
   (`usr/lib/calamares/modules/homeserver`) that saves your choices.
 - `catalog/` is the app catalog: `catalog.json` (the apps, the installer's checklist, which apps
   need which, download and disk sizes), `compose.yaml` (every app, pinned), `setup.py` and
-  `configure-apps.sh` (configure the apps and connect them through their APIs), and `update.sh`
-  (what a server runs after taking a new catalog). It's published as signed releases and installed
+  `configure-apps.sh` (configure the apps and connect them through their APIs), `apps.sh` (add and
+  remove apps on a running server), and `update.sh` (what a server runs after taking a new catalog). It's published as signed releases and installed
   on each server in `/var/lib/homeserver/catalog`. The ISO also carries a minimal copy (dashboard and
   Cockpit only) for installs without internet.
 - `server/` is copied onto the installed system. `catalog.sh` downloads catalog releases and checks
@@ -125,7 +140,8 @@ and install from scratch instead. This is also how servers from before 0.4.0 get
   `install-apps.sh` starts a temporary Docker daemon that writes to the new disk and runs the
   catalog's `configure-apps.sh` for the apps you picked. If that fails, the installed system retries
   it on its first start. `update-setup.sh` and `update-system.sh` are the USB stick's update mode;
-  `usr/share/cockpit/homeserver` is the Cockpit page.
+  `usr/share/cockpit/homeserver` is the Cockpit page, which runs `catalog.sh update` and `catalog.sh
+  apps` through a sudo rule that allows only those two.
 - The screen shows the dashboard in Firefox running under [cage](https://github.com/cage-kiosk/cage).
 
 ## Build it yourself
