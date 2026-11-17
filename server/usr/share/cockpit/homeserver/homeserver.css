@@ -1,7 +1,21 @@
 body { font-family: "Red Hat Text", "Open Sans", sans-serif; margin: 2rem; max-width: 52rem; color: #151515; }
 h1 { font-size: 1.75rem; font-weight: 500; }
+h2 { font-size: 1.3rem; font-weight: 500; margin-top: 2.2rem; }
+h3 { font-size: 1.05rem; font-weight: 600; margin: 1.4rem 0 0.2rem; }
 p { font-size: 1rem; line-height: 1.5; }
 .status { font-size: 1.15rem; font-weight: 600; }
+.error { color: #c9190b; font-weight: 600; }
+.hint { color: #6a6e73; font-size: 0.9rem; margin: 0 0 0.6rem; }
 button { font-size: 1rem; padding: 0.6rem 1.4rem; border: 0; border-radius: 4px; background: #0066cc; color: #fff; cursor: pointer; }
 button:disabled { background: #8a8d90; cursor: default; }
 pre { background: #f0f0f0; padding: 1rem; max-height: 24rem; overflow: auto; white-space: pre-wrap; }
+.app { display: flex; gap: 0.7rem; align-items: flex-start; padding: 0.45rem 0; border-bottom: 1px solid #ececec; }
+.app input { margin-top: 0.3rem; width: 1.05rem; height: 1.05rem; }
+.app .name { font-weight: 600; }
+.app .desc { color: #4f5255; font-size: 0.92rem; }
+.app .note { color: #0066cc; font-size: 0.85rem; }
+.app.adding .name::after { content: " (adding)"; color: #3e8635; font-weight: 400; }
+.app.removing .name::after { content: " (removing)"; color: #c9190b; font-weight: 400; }
+label { display: block; margin: 0.6rem 0 0.3rem; }
+.row { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+input[type=password] { font-size: 1rem; padding: 0.5rem; border: 1px solid #8a8d90; border-radius: 4px; min-width: 16rem; }

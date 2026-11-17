@@ -106,10 +106,6 @@ def run():
     write(os.path.join(etc, "homeserver.env"),
           'OWNER="{}"\nAPPS="{}"\nCOMPOSE_PROFILES="{}"\n'.format(user, " ".join(apps), ",".join(profiles)))
 
-    if "files" in apps:
-        with open(os.path.join(root, "etc/samba/smb.conf"), "a") as f:
-            f.write("\n[Media]\n   path = /srv/data/media\n   valid users = {}\n   read only = no\n".format(user))
-
     target_catalog = os.path.join(root, "var/lib/homeserver/catalog")
     shutil.rmtree(target_catalog, ignore_errors=True)
     shutil.copytree(CATALOG, target_catalog, ignore=shutil.ignore_patterns("__pycache__"))

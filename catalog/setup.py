@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Configures the apps picked in the installer. Called by configure-apps.sh and update.sh; every step is
-safe to repeat.
+"""Configures the apps picked in the installer or added later. Called by configure-apps.sh and update.sh;
+every step is safe to repeat, and also undoes the links to apps that were removed.
 
   setup.py --root DIR prepare    write configs before the containers first start
   setup.py --root DIR connect    set up logins, download clients, libraries and Prowlarr
@@ -17,6 +17,7 @@ import hashlib
 import http.cookiejar
 import json
 import os
+import re
 import secrets
 import sys
 import time
@@ -274,6 +275,11 @@ def prepare(ctx):
     if "bazarr" in ctx.apps and not bazarr.exists():
         ctx.write(bazarr, bazarr_config(ctx))
         bazarr.chmod(0o600)
+    elif "bazarr" in ctx.apps:
+        text = bazarr.read_text()
+        for app in ("sonarr", "radarr"):
+            text = re.sub(rf"^(\s+use_{app}:) \w+$", rf"\1 {str(app in ctx.apps).lower()}", text, flags=re.M)
+        bazarr.write_text(text)
     if "recyclarr" in ctx.apps:
         ctx.write(ctx.appdata / "recyclarr/recyclarr.yml", recyclarr_config(ctx.secrets, ctx.apps))
         (ctx.appdata / "recyclarr/recyclarr.yml").chmod(0o600)
@@ -290,8 +296,8 @@ def dashboard(ctx):
     # are listed here. Homepage reads YAML, and JSON is valid YAML.
     server = [{"Server settings": {"icon": "cockpit.png", "href": f"http://{ctx.host}:9090",
                                    "description": "Updates, disks, restart and shut down"}},
-              {"App updates": {"icon": "mdi-update", "href": f"http://{ctx.host}:9090/homeserver",
-                               "description": "Check for and install new versions of your apps"}}]
+              {"Apps": {"icon": "mdi-apps", "href": f"http://{ctx.host}:9090/homeserver",
+                        "description": "Add, remove and update your apps"}}]
     if "files" in ctx.apps:
         name = ctx.host.split(".")[0]
         server.append({"Shared folder": {"icon": "mdi-folder-network",
@@ -366,6 +372,10 @@ def wait(url, timeout=900):
     sys.exit(f"timed out waiting for {url}")
 
 
+def field(item, name):
+    return next((f.get("value") for f in item["fields"] if f["name"] == name), None)
+
+
 def fill(schema, **values):
     for field in schema["fields"]:
         if field["name"] in values:
@@ -397,9 +407,12 @@ def connect_arr(ctx, name):
     api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
     categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
                   "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
-    have = {c["implementation"] for c in api("GET", "/downloadclient")}
     clients = {"qbittorrent": ("QBittorrent", "qBittorrent", {"username": ctx.user, "password": ctx.password}),
                "sabnzbd": ("Sabnzbd", "SABnzbd", {"apiKey": ctx.secrets["SABNZBD_KEY"]})}
+    for client in api("GET", "/downloadclient"):
+        if field(client, "host") in clients and field(client, "host") not in ctx.apps:
+            api("DELETE", f"/downloadclient/{client['id']}")
+    have = {c["implementation"] for c in api("GET", "/downloadclient")}
     for app, (impl, label, login) in clients.items():
         if app not in ctx.apps or impl in have:
             continue
@@ -436,6 +449,10 @@ def connect_prowlarr(ctx):
     wait("http://localhost:9696/ping")
     prowlarr = arr_api(9696, ctx.secrets["PROWLARR_KEY"], "v1")
     schemas = {x["implementation"]: x for x in prowlarr("GET", "/applications/schema")}
+    for app in prowlarr("GET", "/applications"):
+        if any(field(app, "baseUrl") == f"http://{name}:{ARRS[name]}" and name not in ctx.apps
+               for name in ("sonarr", "radarr", "chaptarr")):
+            prowlarr("DELETE", f"/applications/{app['id']}")
     have = {a["name"] for a in prowlarr("GET", "/applications")}
     for name in ("sonarr", "radarr", "chaptarr"):
         label = name.capitalize()
@@ -533,7 +550,8 @@ def connect_seerr(ctx):
     wait(base + "/status")
     session = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
     login = {"username": ctx.user, "password": ctx.password}
-    if call("GET", base + "/settings/public").get("initialized"):
+    initialized = call("GET", base + "/settings/public").get("initialized")
+    if initialized:
         call("POST", base + "/auth/jellyfin", login, opener=session)
     else:
         call("POST", base + "/auth/jellyfin", {**login, "hostname": "jellyfin", "port": 8096, "useSsl": False,
@@ -542,21 +560,28 @@ def connect_seerr(ctx):
         for library in call("POST", base + "/settings/jellyfin/library/sync", opener=session):
             call("PUT", f"{base}/settings/jellyfin/library/{library['id']}", {"enabled": True}, opener=session)
 
-        common = {"useSsl": False, "baseUrl": "", "is4k": False, "isDefault": True, "syncEnabled": False,
-                  "preventSearch": False, "tagRequests": False, "tags": []}
-        for name, port, folder, preferred, extra in (
-                ("sonarr", 8989, "/data/media/tv", ["WEB-1080p", "1080"],
-                 {"enableSeasonFolders": True, "animeTags": []}),
-                ("radarr", 7878, "/data/media/movies", ["HD Bluray + WEB", "1080"],
-                 {"minimumAvailability": "released"})):
-            if name not in ctx.apps:
-                continue
-            key = ctx.secrets[name.upper() + "_KEY"]
-            profile = pick_profile(arr_api(port, key)("GET", "/qualityprofile"), preferred)
-            call("POST", f"{base}/settings/{name}", {
-                **common, **extra, "name": name.capitalize(), "hostname": name, "port": port, "apiKey": key,
-                "activeProfileId": profile["id"], "activeProfileName": profile["name"],
-                "activeDirectory": folder, "externalUrl": f"http://{ctx.host}:{port}"}, opener=session)
+    # Sonarr and Radarr as installed now: added if new, dropped if removed.
+    common = {"useSsl": False, "baseUrl": "", "is4k": False, "isDefault": True, "syncEnabled": False,
+              "preventSearch": False, "tagRequests": False, "tags": []}
+    for name, port, folder, preferred, extra in (
+            ("sonarr", 8989, "/data/media/tv", ["WEB-1080p", "1080"],
+             {"enableSeasonFolders": True, "animeTags": []}),
+            ("radarr", 7878, "/data/media/movies", ["HD Bluray + WEB", "1080"],
+             {"minimumAvailability": "released"})):
+        ours = [s for s in call("GET", f"{base}/settings/{name}", opener=session) if s.get("hostname") == name]
+        if name not in ctx.apps:
+            for server in ours:
+                call("DELETE", f"{base}/settings/{name}/{server['id']}", opener=session)
+            continue
+        if ours:
+            continue
+        key = ctx.secrets[name.upper() + "_KEY"]
+        profile = pick_profile(arr_api(port, key)("GET", "/qualityprofile"), preferred)
+        call("POST", f"{base}/settings/{name}", {
+            **common, **extra, "name": name.capitalize(), "hostname": name, "port": port, "apiKey": key,
+            "activeProfileId": profile["id"], "activeProfileName": profile["name"],
+            "activeDirectory": folder, "externalUrl": f"http://{ctx.host}:{port}"}, opener=session)
+    if not initialized:
         call("POST", base + "/settings/initialize", opener=session)
 
     ctx.secrets["SEERR_KEY"] = call("GET", base + "/settings/main", opener=session)["apiKey"]

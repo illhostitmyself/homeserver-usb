@@ -3,6 +3,7 @@
 #   catalog.sh fetch DIR    download the newest release, check its signature, unpack it into DIR
 #   catalog.sh status       JSON for the Cockpit page: {"installed": N, "latest": N or null}
 #   catalog.sh update       install the newest release on this server (run as root)
+#   catalog.sh apps         add and remove apps (run as root; stdin: password, then the apps wanted)
 # The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release, signed with a
 # key that never leaves the maintainer's machine. /etc/homeserver/catalog-url (or homeserver.catalog=
 # on the kernel command line) points somewhere else, for testing.
@@ -30,6 +31,12 @@ fetch() {
   [[ -n $(version "$dir") ]] || { echo "The app catalog has no version" >&2; return 1; }
 }
 
+# One app change at a time: an update and adding apps both restart them.
+lock() {
+  exec 9>/run/homeserver-catalog.lock
+  flock -n 9 || { echo "The apps are already being changed. Try again when that's done." >&2; exit 1; }
+}
+
 case ${1:-} in
   fetch)
     [[ -n ${2:-} ]] || { echo "usage: catalog.sh fetch DIR" >&2; exit 2; }
@@ -43,6 +50,7 @@ case ${1:-} in
     printf '{"installed": %s, "latest": %s}\n' "$(version "$installed" || echo null)" "$latest"
     ;;
   update)
+    lock
     new=$installed.new old=$installed.old
     fetch "$new" || exit 1
     have=$(version "$installed") got=$(version "$new")
@@ -65,8 +73,14 @@ case ${1:-} in
       exit 1
     fi
     ;;
+  apps)
+    lock
+    [[ -x $installed/apps.sh ]] ||
+      { echo "This app catalog can't add or remove apps. Update the apps first." >&2; exit 1; }
+    "$installed/apps.sh"
+    ;;
   *)
-    sed -n '2,8p' "$0" >&2
+    sed -n '2,9p' "$0" >&2
     exit 2
     ;;
 esac

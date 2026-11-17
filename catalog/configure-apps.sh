@@ -1,5 +1,6 @@
 #!/bin/bash
-# Downloads and configures the apps in /etc/homeserver/homeserver.env. $1 is the system's root: the
+# Downloads and configures the apps in /etc/homeserver/homeserver.env, when installing and when apps are
+# added later (apps.sh). $1 is the system's root: the
 # new disk during install, / on a first-start retry. Safe to run again; every step skips what's done.
 set -euo pipefail
 root=${1:-/}
@@ -26,8 +27,15 @@ for try in 1 2 3; do
 done
 
 if has files; then
-  printf '%s\n%s\n' "$password" "$password" | chroot "${root:-/}" smbpasswd -s -a "$OWNER"
-  chroot "${root:-/}" systemctl enable smbd.service nmbd.service wsdd2.service
+  smb=$root/etc/samba/smb.conf
+  grep -qx '\[Media\]' "$smb" ||
+    printf '\n[Media]\n   path = /srv/data/media\n   valid users = %s\n   read only = no\n' "$OWNER" >> "$smb"
+  printf '%s\n%s\n' "$password" "$password" | chroot "${root:-/}" smbpasswd -s -a "$OWNER" >/dev/null
+  if [[ -z $root ]]; then
+    systemctl --quiet enable --now smbd.service nmbd.service wsdd2.service
+  else
+    chroot "$root" systemctl --quiet enable smbd.service nmbd.service wsdd2.service
+  fi
 fi
 
 if has filebrowser && [[ ! -f $SRV/appdata/filebrowser/database/filebrowser.db ]]; then
