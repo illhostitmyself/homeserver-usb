@@ -1,0 +1,9 @@
+{
+  "version": 0,
+  "menu": {
+    "index": {
+      "label": "Home Server apps",
+      "order": 1
+    }
+  }
+}

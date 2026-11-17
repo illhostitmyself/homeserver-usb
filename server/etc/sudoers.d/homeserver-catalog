@@ -1,0 +1,3 @@
+# Lets the "Home Server apps" page in Cockpit install a new app catalog without administrative
+# access. It only installs catalog releases signed with the Home Server key.
+%sudo ALL=(root) NOPASSWD: /usr/lib/homeserver/catalog.sh update

@@ -10,3 +10,6 @@ systemctl disable smbd.service nmbd.service samba-ad-dc.service wsdd2.service 2>
 
 useradd --system --create-home --home-dir /var/lib/kiosk --shell /usr/sbin/nologin \
   --groups video,render,input,audio kiosk
+
+# sudo rule files are kept read-only (0440), as visudo makes them.
+chmod 0440 /etc/sudoers.d/homeserver-catalog
