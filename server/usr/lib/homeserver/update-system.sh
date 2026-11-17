@@ -3,7 +3,7 @@
 # Never formats, and never touches users, passwords, app settings (/srv/appdata) or media (/srv/data).
 #   - installs the Debian packages this version adds (needs internet; skipped without it)
 #   - replaces the Home Server scripts and services with this version's
-#   - downloads newer app versions the next time the server starts
+#   - installs the newest app catalog, and moves the apps to its versions the next time the server starts
 set -uo pipefail
 dev=$1
 T=/mnt/homeserver
@@ -59,7 +59,21 @@ for f in packages.list server-files version; do install -D -m 644 "$share/$f" "$
 chroot "$T" systemctl enable homeserver-kiosk.service homeserver-firstboot.service homeserver.service \
   homeserver-refresh.service >/dev/null 2>&1 || fail "couldn't switch on the Home Server services"
 
-step "Your apps update to their newest versions the next time the server starts."
+# The app catalog the installer fetched (or the minimal one on the stick), unless the server already
+# has a newer one. Before 0.4.0 its files lived in /usr/lib/homeserver.
+version() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["version"])' "$1/catalog.json" 2>/dev/null; }
+have=$(version "$T/var/lib/homeserver/catalog") got=$(version /run/homeserver/catalog)
+if [[ -z $have ]] || (( ${got:-0} > have )); then
+  mkdir -p "$T/var/lib/homeserver"
+  rm -rf "$T/var/lib/homeserver/catalog.new"
+  cp -a /run/homeserver/catalog "$T/var/lib/homeserver/catalog.new" || fail "couldn't copy the app catalog"
+  rm -rf "$T/var/lib/homeserver/catalog"
+  mv "$T/var/lib/homeserver/catalog.new" "$T/var/lib/homeserver/catalog"
+  echo "  App catalog ${have:-none} -> $got"
+fi
+rm -f "$T/usr/lib/homeserver/compose.yaml" "$T/usr/lib/homeserver/setup.py" "$T/usr/lib/homeserver/configure-apps.sh"
+
+step "Your apps move to the versions in the app catalog the next time the server starts."
 mkdir -p "$T/var/lib/homeserver"
 touch "$T/var/lib/homeserver/refresh-images"
 echo "== done"

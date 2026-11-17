@@ -17,8 +17,8 @@ Page {
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 18; color: "#253457"
             text: "Your apps, their settings, your name and password, and your files are all as they were. " +
-                  "The first time the server starts, it downloads the newest version of each app, so the " +
-                  "dashboard can take a few minutes to come up."
+                  "The first time the server starts, it moves your apps to the versions in the app catalog, " +
+                  "so the dashboard can take a few minutes to come up."
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 22; font.bold: true; color: "#FB4D13"

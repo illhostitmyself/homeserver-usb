@@ -26,7 +26,14 @@ apps=$(for a in $hs_apps; do printf '%s, ' "${names[$a]:-$a}"; done | sed 's/, $
 new=$(cat /usr/share/homeserver/version 2>/dev/null)
 q() { sed 's/[\\"]/\\&/g' <<< "$1"; }
 
-cat > /etc/calamares/branding/homeserver/update-server.qml <<EOF
+# The installer's branding with its own slideshow: the installer's talks about installing.
+branding=/etc/calamares/branding/homeserver-update
+rm -rf "$branding"
+cp -a /etc/calamares/branding/homeserver "$branding"
+sed -i 's/^componentName: homeserver$/componentName: homeserver-update/; s/^slideshow: "show.qml"$/slideshow: "update-show.qml"/' \
+  "$branding/branding.desc"
+
+cat > "$branding/update-server.qml" <<EOF
 // Written by update-setup.sh: first page of "Update this server" (notesqml@server).
 import io.calamares.core 1.0
 import io.calamares.ui 1.0
