@@ -4,7 +4,6 @@
 # If setup fails the install still finishes, and homeserver-firstboot.service retries it.
 set -euo pipefail
 root=${1%/}
-lib=$(dirname "$(readlink -f "$0")")
 . "$root/etc/homeserver/homeserver.env"
 
 systemctl stop docker.socket docker.service 2>/dev/null || true
@@ -14,7 +13,7 @@ trap 'systemctl stop homeserver-install-docker' EXIT
 for _ in $(seq 60); do docker info >/dev/null 2>&1 && break; sleep 1; done
 docker info >/dev/null || { echo "Docker didn't start" >&2; exit 1; }
 
-if "$lib/configure-apps.sh" "$root"; then
+if "$root/var/lib/homeserver/catalog/configure-apps.sh" "$root"; then
   echo "Apps are set up"
 else
   echo "App setup failed; it will be retried when the server first starts" >&2

@@ -2,51 +2,19 @@ import os
 import re
 import secrets
 import shutil
+import sys
 
 import libcalamares
 from libcalamares.utils import debug, warning
 
-# Checklist entry (a "package" in netinstall.conf) -> app id. Every entry here, and every extra
-# drive (from netinstall-drives.conf), is removed from the package list before the
-# packages step, so apt never sees them.
-APPS = {
-    "Homepage": "homepage",
-    "File Browser": "filebrowser",
-    "Jellyfin": "jellyfin",
-    "Seerr": "seerr",
-    "Audiobookshelf": "audiobookshelf",
-    "Sonarr": "sonarr",
-    "Radarr": "radarr",
-    "Chaptarr": "chaptarr",
-    "Prowlarr": "prowlarr",
-    "Bazarr": "bazarr",
-    "Recyclarr": "recyclarr",
-    "qBittorrent": "qbittorrent",
-    "SABnzbd": "sabnzbd",
-    "Shared folder": "files",
-}
+# The app list and its rules come from the app catalog that installer-scale.sh fetched (or the
+# minimal one on the stick). It's copied onto the new system, which installs and updates from it.
+CATALOG = "/run/homeserver/catalog"
+sys.path.insert(0, CATALOG)
+import apps as catalog  # noqa: E402
+
 # Extra drives are listed as "<model>, <size> (/dev/...)".
 DRIVE = re.compile(r"\((/dev/[^)]+)\)$")
-# Always installed: the dashboard is what the screen shows. Listed as fixed in the checklist too.
-ALWAYS = {"homepage"}
-# Listed for information only; installed with the system either way.
-FIXED = {"Cockpit", "Automatic security updates"}
-
-# app -> apps it can't work without
-NEEDS = {
-    "seerr": ["jellyfin"],
-}
-# app -> (it needs at least one of these, what gets added if none was picked)
-DOWNLOADERS = ["qbittorrent", "sabnzbd"]
-NEEDS_ONE_OF = {
-    "sonarr": (DOWNLOADERS, ["qbittorrent"]),
-    "radarr": (DOWNLOADERS, ["qbittorrent"]),
-    "chaptarr": (DOWNLOADERS, ["qbittorrent"]),
-    "seerr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
-    "bazarr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
-    "recyclarr": (["sonarr", "radarr"], ["sonarr", "radarr"]),
-    "prowlarr": (["sonarr", "radarr", "chaptarr"], ["sonarr", "radarr"]),
-}
 
 
 def pretty_name():
@@ -59,8 +27,9 @@ def package_name(entry):
     return str(entry)
 
 
-def take_checklist(gs):
-    """Returns the ticked checklist entries and removes them from the package list."""
+def take_checklist(gs, names):
+    """Returns the ticked checklist entries and removes them (and the extra drives) from the
+    package list, so apt never sees them."""
     ticked = set()
     operations = []
     for op in gs.value("packageOperations") or []:
@@ -72,7 +41,7 @@ def take_checklist(gs):
             rest = []
             for entry in entries:
                 name = package_name(entry)
-                if name in APPS or name in FIXED or DRIVE.search(name):
+                if name in names or DRIVE.search(name):
                     ticked.add(name)
                 else:
                     rest.append(entry)
@@ -82,20 +51,6 @@ def take_checklist(gs):
             operations.append(kept)
     gs.insert("packageOperations", operations)
     return ticked
-
-
-def resolve(apps):
-    apps = set(apps)
-    changed = True
-    while changed:
-        before = set(apps)
-        for app in list(apps):
-            apps.update(NEEDS.get(app, []))
-            options, fallback = NEEDS_ONE_OF.get(app, ([], []))
-            if options and not apps.intersection(options):
-                apps.update(fallback)
-        changed = apps != before
-    return sorted(apps)
 
 
 def boot_disk(gs):
@@ -128,10 +83,12 @@ def run():
     root = gs.value("rootMountPoint")
     user = gs.value("username")
     boot_disk(gs)
-    ticked = take_checklist(gs)
-    picked = {APPS[name] for name in ticked if name in APPS} | ALWAYS
+    cat = catalog.load(os.path.join(CATALOG, "catalog.json"))
+    names = catalog.by_name(cat)
+    ticked = take_checklist(gs, names)
+    picked = {names[name] for name in ticked if name in names}
     drives = sorted(DRIVE.search(name).group(1) for name in ticked if DRIVE.search(name))
-    apps = resolve(picked)
+    apps = catalog.resolve(cat, picked)
     etc = os.path.join(root, "etc/homeserver")
     debug("homeserver: picked={} installing={} drives={} user={}".format(sorted(picked), apps, drives, user))
     write(os.path.join(etc, "drives"), "".join(d + "\n" for d in drives))
@@ -152,6 +109,10 @@ def run():
     if "files" in apps:
         with open(os.path.join(root, "etc/samba/smb.conf"), "a") as f:
             f.write("\n[Media]\n   path = /srv/data/media\n   valid users = {}\n   read only = no\n".format(user))
+
+    target_catalog = os.path.join(root, "var/lib/homeserver/catalog")
+    shutil.rmtree(target_catalog, ignore_errors=True)
+    shutil.copytree(CATALOG, target_catalog, ignore=shutil.ignore_patterns("__pycache__"))
 
     shutil.rmtree(os.path.join(root, "etc/calamares"), ignore_errors=True)
     # Tells installer-scale.sh (on the live system) to power off when the installer closes.

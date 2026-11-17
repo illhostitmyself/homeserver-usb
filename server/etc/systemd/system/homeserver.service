@@ -12,8 +12,8 @@ EnvironmentFile=/etc/homeserver/homeserver.env
 EnvironmentFile=/etc/homeserver/compose.env
 EnvironmentFile=/etc/homeserver/secrets.env
 Environment=SRV=/srv
-ExecStart=/usr/bin/docker compose -f /usr/lib/homeserver/compose.yaml up -d --remove-orphans
-ExecStop=/usr/bin/docker compose -f /usr/lib/homeserver/compose.yaml stop
+ExecStart=/usr/bin/docker compose -f /var/lib/homeserver/catalog/compose.yaml up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -f /var/lib/homeserver/catalog/compose.yaml stop
 
 [Install]
 WantedBy=multi-user.target

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Configures the apps picked in the installer. Called by configure-apps.sh; every step is safe to repeat.
+"""Configures the apps picked in the installer. Called by configure-apps.sh and update.sh; every step is
+safe to repeat.
 
   setup.py --root DIR prepare    write configs before the containers first start
   setup.py --root DIR connect    set up logins, download clients, libraries and Prowlarr
@@ -288,10 +289,12 @@ def dashboard(ctx):
     # Apps appear through their homepage.* container labels; only things that aren't containers
     # are listed here. Homepage reads YAML, and JSON is valid YAML.
     server = [{"Server settings": {"icon": "cockpit.png", "href": f"http://{ctx.host}:9090",
-                                   "description": "Updates, disks, restart and shut down"}}]
+                                   "description": "Updates, disks, restart and shut down"}},
+              {"App updates": {"icon": "mdi-update", "href": f"http://{ctx.host}:9090/homeserver",
+                               "description": "Check for and install new versions of your apps"}}]
     if "files" in ctx.apps:
         name = ctx.host.split(".")[0]
-        server.append({"Shared folder": {"icon": "samba.png",
+        server.append({"Shared folder": {"icon": "mdi-folder-network",
                                          "description": f"On Windows, open File Explorer and type \\\\{name}\\Media"}})
     if (ctx.etc / "password-generated").exists() and (ctx.etc / "password").exists():
         server.append({"Your app password": {"icon": "mdi-key", "description": ctx.password}})

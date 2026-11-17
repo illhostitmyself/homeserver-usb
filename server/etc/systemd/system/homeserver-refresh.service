@@ -1,5 +1,5 @@
 [Unit]
-Description=Home Server app update (download newer app versions after an update from the USB stick)
+Description=Home Server app update (move the apps to the catalog's versions after an update from the USB stick)
 ConditionKernelCommandLine=!boot=live
 ConditionPathExists=/var/lib/homeserver/refresh-images
 Wants=network-online.target
@@ -10,11 +10,7 @@ Before=homeserver.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-EnvironmentFile=/etc/homeserver/homeserver.env
-EnvironmentFile=/etc/homeserver/compose.env
-EnvironmentFile=/etc/homeserver/secrets.env
-Environment=SRV=/srv
-ExecStart=/usr/bin/docker compose -f /usr/lib/homeserver/compose.yaml pull --quiet
+ExecStart=/var/lib/homeserver/catalog/update.sh
 ExecStartPost=/usr/bin/rm -f /var/lib/homeserver/refresh-images
 TimeoutStartSec=1h
 

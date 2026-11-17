@@ -10,7 +10,7 @@ Before=homeserver.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/usr/lib/homeserver/configure-apps.sh /
+ExecStart=/var/lib/homeserver/catalog/configure-apps.sh /
 TimeoutStartSec=1h
 
 [Install]

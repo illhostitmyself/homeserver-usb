@@ -4,19 +4,15 @@ import io.calamares.ui 1.0
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.3
+import "catalog.js" as Catalog
 
 Page {
     id: page
     background: Rectangle { color: "#FFFFFF" }
 
-    // Checklist name -> [download MB, disk MB, memory MB when idle], measured with every app running.
-    readonly property var cost: ({
-        "Homepage": [80, 263, 233], "File Browser": [16, 39, 25], "Shared folder": [0, 0, 30],
-        "Jellyfin": [326, 894, 206], "Seerr": [140, 503, 228], "Audiobookshelf": [125, 360, 119],
-        "Sonarr": [83, 205, 120], "Radarr": [86, 213, 101], "Chaptarr": [368, 1030, 132],
-        "Prowlarr": [77, 187, 114], "Bazarr": [149, 442, 181], "Recyclarr": [45, 130, 12],
-        "qBittorrent": [97, 231, 35], "SABnzbd": [66, 185, 67]
-    })
+    // Checklist name -> [download MB, disk MB, memory MB when idle], from the app catalog
+    // (catalog.js is written next to this file at boot).
+    readonly property var cost: Catalog.cost
     property var drives: []
     property var apps: []
     property var totals: [0, 0, 0]
