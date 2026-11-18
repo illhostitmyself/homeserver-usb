@@ -56,9 +56,13 @@ step "Updating Home Server..."
 # time of their last change in the repo).
 have_rev=$(cat "$T$share/server-rev" 2>/dev/null || echo 0)
 if (( $(cat $share/server-rev 2>/dev/null || echo 0) >= have_rev )); then
+  grub=0
   while read -r f; do
+    cmp -s "/$f" "$T/$f" && continue
     install -D -m "$(stat -c %a "/$f")" "/$f" "$T/$f" || fail "couldn't copy /$f"
+    [[ $f == etc/default/grub.d/* ]] && grub=1
   done < $share/server-files
+  (( grub )) && { chroot "$T" update-grub >>"$log" 2>&1 || echo "  Couldn't update the boot menu (details in the log)."; }
   for f in packages.list server-files server-rev; do install -D -m 644 "$share/$f" "$T$share/$f"; done
   chmod 0440 "$T"/etc/sudoers.d/homeserver-*
 else

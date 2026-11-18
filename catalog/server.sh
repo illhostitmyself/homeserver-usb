@@ -31,11 +31,12 @@ fi
 for f in "$cat"/server/etc/sudoers.d/*; do
   visudo -cqf "$f" || { echo "The sudo rule $f is broken; not installing the Home Server files" >&2; exit 1; }
 done
-changed=0
+changed=0 grub=0
 while read -r f; do
   cmp -s "$cat/server/$f" "$root/$f" && continue
   install -D -m "$(stat -c %a "$cat/server/$f")" "$cat/server/$f" "$root/$f"
   changed=$((changed + 1))
+  [[ $f == etc/default/grub.d/* ]] && grub=1
 done < <(cd "$cat/server" && find . -type f -printf '%P\n' | sort)
 chmod 0440 "$root"/etc/sudoers.d/homeserver-*
 mkdir -p "$share"
@@ -48,5 +49,9 @@ if [[ -z $root ]]; then
   systemctl --quiet enable "${units[@]}"
 else
   chroot "$root" systemctl --quiet enable "${units[@]}"
+fi
+if (( grub )); then
+  if [[ -z $root ]]; then update-grub; else chroot "$root" update-grub; fi >/dev/null 2>&1 ||
+    echo "Couldn't update the boot menu; the new start-up settings apply after the next update" >&2
 fi
 echo "Home Server files: $changed updated"

@@ -5,6 +5,11 @@
 online() { ip route show default | grep -q .; }
 
 nm-online -s -q -t 30 || true
+# A cable is plugged in but the router hasn't given an address yet (some take a minute or more).
+for _ in {1..90}; do
+  online || ! cat /sys/class/net/en*/carrier 2>/dev/null | grep -qx 1 && break
+  sleep 1
+done
 online && exit 0
 nmcli radio wifi on 2>/dev/null
 nmcli -t -f TYPE device | grep -qx wifi || exit 0

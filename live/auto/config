@@ -12,5 +12,5 @@ lb config noauto \
   --chroot-squashfs-compression-type xz \
   --iso-application "Home Server Installer" \
   --iso-volume "HOMESERVER" \
-  --bootappend-live "boot=live components quiet splash hostname=homeserver-setup" \
+  --bootappend-live "boot=live components quiet loglevel=3 splash hostname=homeserver-setup" \
   "$@"
