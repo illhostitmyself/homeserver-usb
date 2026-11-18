@@ -109,17 +109,29 @@ left off. Downloads and media are never touched.
 Nothing is erased by either kind of update: apps, their settings, your name and password, and your
 files stay as they are.
 
-**Apps, from the dashboard.** Click **Apps** on the dashboard. When a newer app catalog is out,
-**Update the apps** downloads it, checks its signature, moves the apps to the newly pinned versions
-and refreshes the dashboard. If that fails, the previous catalog is put back.
+**From the dashboard (the usual way).** Click **Apps** on the dashboard. When a newer app catalog is
+out, type your password and click **Update the apps**. It downloads the catalog and checks its
+signature, then:
+
+- installs the Home Server files the catalog carries (scripts, services, this Cockpit page, the sudo
+  rule) and any Debian packages they need, unless the server already has newer ones;
+- moves the apps to the newly pinned versions;
+- applies every app's settings and links again (logins, download clients, libraries, Prowlarr, Seerr,
+  Recyclarr, the dashboard), so a catalog that changes how apps are set up reaches servers that
+  already have them.
+
+If the update fails, the previous catalog is put back. Since 0.5.0 this covers everything except
+reinstalling and a new Debian release, so a new USB stick is rarely needed.
 
 <img src="docs/screenshots/17-app-updates.png" alt="App updates in Cockpit" width="640">
 
-**The whole server, from a new USB stick.** Flash the new `homeserver-usb.iso` and boot the server
-from it. The stick finds Home Server on the disk and offers to update it instead of reinstalling:
-it adds the system packages the new version needs (needs internet), replaces the Home Server scripts
-and services, and installs the newest app catalog. Click **Cancel** on that page to erase the disk
-and install from scratch instead. This is also how servers from before 0.4.0 get the app catalog.
+**From a new USB stick.** Servers from before 0.4.0 have no app catalog yet and need this once.
+Flash the new `homeserver-usb.iso` and boot the server from it. The stick finds Home Server on the
+disk and offers to update it instead of reinstalling: it adds the system packages the new version
+needs (needs internet), replaces the Home Server scripts and services (unless the server already has
+newer ones from the catalog), and installs the newest app catalog. Without the password, the next
+start applies the settings that only need the apps' own keys. Click **Cancel** on that page to erase
+the disk and install from scratch instead.
 
 <img src="docs/screenshots/19-update-found.png" alt="Home Server is already on this computer" width="640">
 
@@ -132,7 +144,9 @@ and install from scratch instead. This is also how servers from before 0.4.0 get
 - `catalog/` is the app catalog: `catalog.json` (the apps, the installer's checklist, which apps
   need which, download and disk sizes), `compose.yaml` (every app, pinned), `setup.py` and
   `configure-apps.sh` (configure the apps and connect them through their APIs), `apps.sh` (add and
-  remove apps on a running server), and `update.sh` (what a server runs after taking a new catalog). It's published as signed releases and installed
+  remove apps on a running server), `update.sh` (what a server runs after taking a new catalog) and
+  `server.sh` (installs the Home Server files a release carries). `bundle.sh` adds the repo's
+  `server/` tree and package list to each release. It's published as signed releases and installed
   on each server in `/var/lib/homeserver/catalog`. The ISO also carries a minimal copy (dashboard and
   Cockpit only) for installs without internet.
 - `server/` is copied onto the installed system. `catalog.sh` downloads catalog releases and checks
@@ -163,16 +177,20 @@ server with `/etc/homeserver/catalog-url`. Either way it must be signed by a key
 
 ## Releasing the app catalog
 
-Change what you need in `catalog/`, raise `"version"` in `catalog.json`, test it, then:
+Change what you need in `catalog/` or `server/`, raise `"version"` in `catalog.json`, test it,
+commit, then:
 
 ```bash
 catalog/release.sh ~/path/to/catalog-signing-key
 ```
 
-It signs `catalog.tar.gz` with `ssh-keygen -Y sign`, checks the signature against
+It bundles `catalog/` with `server/` and the package list, signs `catalog.tar.gz` with
+`ssh-keygen -Y sign`, checks the signature against
 `server/usr/share/homeserver/catalog-signers` (the public key every ISO and server trusts), and
 uploads it to two GitHub releases: `catalog-vN`, kept for history, and `catalog`, which installers
-and servers download. It refuses a version that isn't newer than the published one.
+and servers download. It refuses a version that isn't newer than the published one, and
+uncommitted changes. Servers never go back to older Home Server files: each release records when
+`server/` last changed (`server-rev`), and so does each ISO.
 
 ## Security notes
 

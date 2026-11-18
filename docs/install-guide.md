@@ -175,18 +175,20 @@ There are two kinds of updates. Neither erases anything.
 
 The apps' settings and versions come from the Home Server app catalog. When a new catalog is out,
 click **Apps** in the Server row at the bottom of the dashboard and log in. The page says whether an
-update is available; click **Update the apps**.
+update is available. Type your password and click **Update the apps**.
 
 ![App updates](screenshots/17-app-updates.png)
 
-It downloads the new catalog, checks that it really comes from Home Server, and moves your apps to
-the new versions. If anything goes wrong, it puts the previous versions back on its own.
+It downloads the new catalog, checks that it really comes from Home Server, updates the server's own
+Home Server parts, moves your apps to the new versions and sets them up again with your password. If
+anything goes wrong, it puts the previous versions back on its own. This is the only kind of update
+most servers ever need.
 
 ![App updates done](screenshots/18-app-updates-done.png)
 
 ### The whole server: from a new USB stick
 
-New versions of the USB stick also update the server itself (for example, Wi-Fi support). Flash the
+Servers installed before version 0.4.0 need this once, to get the app catalog. Flash the
 new version to the USB stick and start the server from it, as in step 2. Instead of the installer
 you see **Home Server is already on this computer**, with your disk and apps. Click **Next**.
 
