@@ -1,4 +1,4 @@
-// Last page of "Update this server" (notesqml@updated). Done closes Calamares and the stick restarts.
+// Last page of "Update this server" (the finishedq module). Done closes Calamares and the stick restarts.
 import io.calamares.core 1.0
 import io.calamares.ui 1.0
 import QtQuick 2.15
