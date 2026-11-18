@@ -13,18 +13,20 @@
 #                         Pass the same --extra when booting the installed system with --disk.
 #   test/vm.sh --extra-size 50   make new --extra disks 50 GB instead of 16 GB
 #   test/vm.sh --res 2560x1440   screen size (default 1920x1080), e.g. for recording at 2K
+#   test/vm.sh --mem 3072        memory in MB (default 4096)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 state=build/vm
 mkdir -p "$state"
 
-firmware=uefi net=1 stick=1 display=none extra=0 extra_size=16 res=1920x1080 iso=out/homeserver-usb.iso
+firmware=uefi net=1 stick=1 display=none extra=0 extra_size=16 res=1920x1080 mem=4096 iso=out/homeserver-usb.iso
 while (( $# )); do
   arg=$1; shift
   case $arg in
     --extra) extra=$1; shift ;;
     --extra-size) extra_size=$1; shift ;;
     --res) res=$1; shift ;;
+    --mem) mem=$1; shift ;;
     --iso) iso=$1; shift ;;
     --bios) firmware=bios ;;
     --offline) net=0 ;;
@@ -49,7 +51,7 @@ else
 fi
 
 args=(
-  -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
+  -enable-kvm -cpu host -smp 4 -m "$mem" -machine q35
   -device "VGA,edid=on,xres=${res%x*},yres=${res#*x},vgamem_mb=64" -device qemu-xhci -device usb-tablet -device usb-kbd
   -display "$display" -vnc 127.0.0.1:7
   -qmp "unix:$state/qmp.sock,server,nowait"
