@@ -1,5 +1,5 @@
 {
-  "version": 8,
+  "version": 9,
   "groups": [
     {"name": "Always installed", "description": "Part of the server itself", "always": true,
      "apps": ["homepage", "cockpit", "security-updates"]},
@@ -9,7 +9,9 @@
      "apps": ["jellyfin", "seerr", "audiobookshelf"]},
     {"name": "Automatic downloads",
      "description": "Find, download and file things for you. You add your own sources in Prowlarr and SABnzbd",
-     "apps": ["sonarr", "radarr", "chaptarr", "prowlarr", "bazarr", "recyclarr", "qbittorrent", "sabnzbd"]}
+     "apps": ["sonarr", "radarr", "chaptarr", "prowlarr", "bazarr", "recyclarr", "qbittorrent", "sabnzbd"]},
+    {"name": "Remote access", "description": "Use your apps away from home (needs a free Tailscale account)",
+     "selected": false, "apps": ["tailscale"]}
   ],
   "apps": {
     "homepage": {"name": "Homepage", "cost": [80, 263, 233],
@@ -51,6 +53,8 @@
     "qbittorrent": {"name": "qBittorrent", "cost": [97, 231, 35],
                     "description": "Torrent downloader"},
     "sabnzbd": {"name": "SABnzbd", "cost": [66, 185, 67],
-                "description": "Usenet downloader. You add your own Usenet provider in it"}
+                "description": "Usenet downloader. You add your own Usenet provider in it"},
+    "tailscale": {"name": "Tailscale", "cost": [63, 120, 40],
+                  "description": "Reach the dashboard and apps from your phone or laptop anywhere, with a free Tailscale account. No router changes"}
   }
 }

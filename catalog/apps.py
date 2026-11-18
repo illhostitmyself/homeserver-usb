@@ -90,7 +90,7 @@ def installer(cat, out):
     lines = []
     for group in cat["groups"]:
         lines += [f"- name: {quote(group['name'])}", f"  description: {quote(group['description'])}",
-                  "  selected: true", "  expanded: true"]
+                  f"  selected: {str(group.get('selected', True)).lower()}", "  expanded: true"]
         if group.get("always"):
             lines.append("  immutable: true")
         lines.append("  packages:")

@@ -250,7 +250,7 @@ permissions = 775
 {categories}"""
 
 
-CATEGORIES = {"movies": "movies", "tv": "tv", "books": "books", "audiobooks": "audiobooks"}
+CATEGORIES = {"movies": "movies", "tv": "tv", "books": "books", "audiobooks": "audiobooks", "prowlarr": "prowlarr"}
 ARRS = {"sonarr": 8989, "radarr": 7878, "prowlarr": 9696, "chaptarr": 8789}
 
 
@@ -261,6 +261,7 @@ def prepare(ctx):
     ctx.own(ctx.srv, ctx.data, ctx.data / "torrents", ctx.data / "usenet", ctx.data / "usenet/complete", ctx.data / "media")
     for d in ("homepage", "filebrowser/database", "filebrowser/config", "jellyfin", "seerr", "bazarr/config",
               "audiobookshelf/config", "audiobookshelf/metadata", "sabnzbd", "recyclarr", "qbittorrent/qBittorrent",
+              "tailscale",
               *ARRS):
         ctx.mkdir(ctx.appdata / d)
     ctx.own(ctx.appdata / "filebrowser", ctx.appdata / "qbittorrent", ctx.appdata / "bazarr",
@@ -304,6 +305,7 @@ LOOK_DEFAULTS = {"title": "Home Server", "theme": "light", "color": "stone", "ba
 COLORS = ["slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow", "lime", "green",
           "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"]
 PICTURES = {b"\xff\xd8\xff": "jpg", b"\x89PNG": "png", b"RIFF": "webp"}
+BACKGROUNDS = Path(__file__).resolve().parent / "backgrounds"
 
 
 def read_look(ctx):
@@ -315,7 +317,7 @@ def read_look(ctx):
 
 
 def look(ctx):
-    """{"title", "theme", "color", "background": "keep" | "remove" | base64 picture} on stdin."""
+    """{"title", "theme", "color", "background": "keep" | "remove" | "builtin:<name>" | base64 picture} on stdin."""
     new = json.load(sys.stdin)
     current = read_look(ctx)
     title = str(new.get("title", current["title"])).strip()[:60] or LOOK_DEFAULTS["title"]
@@ -324,8 +326,15 @@ def look(ctx):
     background = current["background"]
     images = ctx.appdata / "homepage/images"
     picture = new.get("background", "keep")
-    data = ext = None
-    if picture not in ("keep", "remove", ""):
+    data = None
+    if picture.startswith("builtin:"):
+        # One of the pictures that come with the catalog (backgrounds/), for the server's own screen,
+        # which can't open a file window.
+        source = BACKGROUNDS / (picture[8:] + ".jpg")
+        if "/" in picture or not source.is_file():
+            sys.exit("That picture isn't one of the built-in ones")
+        data, name = source.read_bytes(), f"builtin-{source.name}"
+    elif picture not in ("keep", "remove", ""):
         try:
             data = base64.b64decode(picture, validate=True)
         except (binascii.Error, ValueError):
@@ -335,13 +344,14 @@ def look(ctx):
         ext = next((e for magic, e in PICTURES.items() if data.startswith(magic)), None)
         if not ext or (ext == "webp" and data[8:12] != b"WEBP"):
             sys.exit("Use a JPEG, PNG or WebP picture")
+        name = f"background.{ext}"
     if picture == "remove" or data:
-        for old in images.glob("background.*"):
+        for old in [*images.glob("background.*"), *images.glob("builtin-*")]:
             old.unlink()
         background = ""
     if data:
         ctx.mkdir(images)
-        path = images / f"background.{ext}"
+        path = images / name
         path.write_bytes(data)
         ctx.own(path)
         background = path.name
@@ -360,6 +370,9 @@ def dashboard(ctx):
                                    "description": "Updates, disks, restart and shut down"}},
               {"Apps": {"icon": "mdi-apps", "href": f"http://{ctx.host}:9090/homeserver",
                         "description": "Add, remove and update your apps"}}]
+    if "tailscale" in ctx.apps:
+        server.append({"Remote access": {"icon": "tailscale.png", "href": f"http://{ctx.host}:9090/homeserver",
+                                         "description": "Use your apps away from home with Tailscale"}})
     if "files" in ctx.apps:
         name = ctx.host.split(".")[0]
         server.append({"Shared folder": {"icon": "mdi-folder-network",
@@ -485,13 +498,8 @@ def set_login(api, ctx):
                   username=ctx.user, password=ctx.password, passwordConfirmation=ctx.password)
 
 
-def connect_arr(ctx, name):
-    port = ARRS[name]
-    version = "v1" if name == "chaptarr" else "v3"
-    wait(f"http://localhost:{port}/ping")
-    api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
-    categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
-                  "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
+def download_clients(ctx, api, categories):
+    """Adds the installed download apps to an arr (or Prowlarr) and drops removed ones."""
     clients = {"qbittorrent": ("QBittorrent", "qBittorrent", lambda: {"username": ctx.user, "password": ctx.password}),
                "sabnzbd": ("Sabnzbd", "SABnzbd", lambda: {"apiKey": ctx.secrets["SABNZBD_KEY"]})}
     for client in api("GET", "/downloadclient"):
@@ -505,6 +513,16 @@ def connect_arr(ctx, name):
         schema.update(name=label, enable=True, priority=1)
         fill(schema, host=app, port=8080, **login(), **categories)
         api("POST", "/downloadclient?forceSave=true", schema)
+
+
+def connect_arr(ctx, name):
+    port = ARRS[name]
+    version = "v1" if name == "chaptarr" else "v3"
+    wait(f"http://localhost:{port}/ping")
+    api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
+    categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
+                  "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
+    download_clients(ctx, api, categories)
 
     if not api("GET", "/rootfolder"):
         if name == "chaptarr":
@@ -550,6 +568,8 @@ def connect_prowlarr(ctx):
         fill(schema, prowlarrUrl="http://prowlarr:9696", baseUrl=f"http://{name}:{ARRS[name]}",
              apiKey=ctx.secrets[name.upper() + "_KEY"])
         prowlarr("POST", "/applications?forceSave=true", schema)
+    # For grabbing straight from a Prowlarr search (what the arrs don't find): its own folder, never imported.
+    download_clients(ctx, prowlarr, {"category": "prowlarr"})
     if ctx.has_password:
         set_login(prowlarr, ctx)
 

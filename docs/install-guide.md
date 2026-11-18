@@ -140,7 +140,9 @@ Everything else is already set up and connected. These two need your own account
 to you:
 
 **Add your download sources in Prowlarr** ("Download sources" on the dashboard). Click **Add New
-Indexer** and pick the ones you use. Sonarr, Radarr and Chaptarr get them automatically.
+Indexer** and pick the ones you use. Sonarr, Radarr and Chaptarr get them automatically. For
+something they can't find on their own, search in Prowlarr itself and click download: it goes to
+qBittorrent or SABnzbd in its own `prowlarr` folder, which you can move with File Browser.
 
 ![Prowlarr](screenshots/step-prowlarr.png)
 
@@ -166,6 +168,20 @@ your name and password and appear on the dashboard when it's done.
 
 Removing an app keeps its settings, so adding it back later picks up where it left off. Your files,
 downloads and media are never removed.
+
+## Changing how the dashboard looks
+
+On the same Apps page, **Dashboard look** sets the dashboard's title, light or dark theme, color and
+background picture. Click one of the built-in pictures, or upload your own from a phone or computer
+(the server's own screen can't open a file window). Click **Save** and reload the dashboard.
+
+## Using your apps away from home
+
+Tick **Tailscale** under Your apps (it's free for personal use). When it's added, the Apps page shows
+a **Remote access** section with a link. Open the link on any phone or computer, sign in to Tailscale
+or make an account, and approve the server. Then install the Tailscale app on your phone and sign in
+with the same account. Away from home, open **http://homeserver/** on the phone with Tailscale on.
+Nothing changes on your router, and nobody outside your Tailscale account can reach the server.
 
 ## Updating later
 

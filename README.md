@@ -16,9 +16,9 @@ it's online.
 
 ## What you get
 
-Every app in the catalog has its own checkbox in the installer, and all of them are ticked by default. Apps that
-another app needs are added automatically (Seerr adds Jellyfin; Sonarr, Radarr and Chaptarr add
-qBittorrent if no downloader is ticked). Homepage is always installed.
+Every app in the catalog has its own checkbox in the installer, and all of them except Tailscale are
+ticked by default. Apps that another app needs are added automatically (Seerr adds Jellyfin; Sonarr,
+Radarr and Chaptarr add qBittorrent if no downloader is ticked). Homepage is always installed.
 
 | App | What it's for |
 |---|---|
@@ -29,11 +29,12 @@ qBittorrent if no downloader is ticked). Homepage is always installed.
 | [Seerr](https://github.com/seerr-team/seerr) | Request a movie or show; signed in through Jellyfin and linked to Sonarr and Radarr |
 | [Audiobookshelf](https://www.audiobookshelf.org) | Audiobooks, ebooks and podcasts, with the libraries already created |
 | Sonarr, Radarr, [Chaptarr](https://hub.docker.com/r/chaptarr/chaptarr) | TV, movies, and books/audiobooks, each linked to every installed downloader with its own category |
-| Prowlarr | Download sources, shared with Sonarr, Radarr and Chaptarr |
+| Prowlarr | Download sources, shared with Sonarr, Radarr and Chaptarr, and linked to the downloaders for grabbing straight from a search (category `prowlarr`) |
 | Bazarr | Subtitles, linked to Sonarr and Radarr |
 | [Recyclarr](https://recyclarr.dev) | Keeps Sonarr and Radarr on the TRaSH Guides profiles |
 | qBittorrent | Torrent downloader |
 | [SABnzbd](https://sabnzbd.org) | Usenet downloader; you add your own Usenet provider |
+| [Tailscale](https://tailscale.com) | The dashboard and apps from your phone or laptop away from home, with a free Tailscale account and no router changes. Not ticked by default; the Apps page shows the link to connect it |
 
 Always installed: [Cockpit](https://cockpit-project.org) for server settings (port 9090: updates,
 disks, restart, shut down), a **Home Server apps** page in Cockpit for app updates, and automatic
@@ -192,19 +193,39 @@ and servers download. It refuses a version that isn't newer than the published o
 uncommitted changes. Servers never go back to older Home Server files: each release records when
 `server/` last changed (`server-rev`), and so does each ISO.
 
+## Dashboard look
+
+The **Dashboard look** section of the Apps page changes the dashboard's title, light or dark theme,
+accent color and background picture, for every screen at once. Pick one of the built-in pictures or
+upload your own (JPEG, PNG or WebP, up to 15 MB). Uploading only works from another computer or
+phone: the server's own screen can't open a file window, so the built-in pictures are there for it.
+
+## Remote access
+
+With the Tailscale app installed, the Apps page has a **Remote access** section. Until the server is
+connected it shows a login link: open it on any device, sign in to Tailscale (or create a free
+account) and approve the server. Then install the Tailscale app on your phone or laptop, sign in to
+the same account, and open `http://homeserver/` (or the `100.x.y.z` address the page shows) from
+anywhere. The dashboard tiles follow whatever address the dashboard was opened with. **Disconnect**
+logs the server out of Tailscale.
+
 ## Security notes
 
 This is meant for a home network. The dashboard has no login, and everything uses plain HTTP.
-Don't forward these ports to the internet.
+Don't forward these ports to the internet; for access away from home use the Tailscale app, which
+only lets in devices signed in to your own Tailscale account.
 
 The app catalog runs as root on every server, so servers only accept a catalog signed with the
 Home Server key, and never one older than what they have. That key is kept offline, not on GitHub;
 taking over the repository isn't enough to push code to servers. Cockpit's app update button can
 run without administrative access because of one sudo rule
-(`/etc/sudoers.d/homeserver-catalog`) that allows exactly `catalog.sh update`, which only installs
-signed releases.
+(`/etc/sudoers.d/homeserver-catalog`) that allows exactly `catalog.sh update`, `apps`, `look` and
+`remote status|logout`; the first two only use signed releases.
 
 ## Known issues
+
+- The server's own screen can't open a file window (Firefox runs full screen under cage, which
+  doesn't show it), so uploading a background picture or a file has to be done from another device.
 
 - Firefox on the server's screen shows "This connection is not secure" under login forms, and it can
   cover the password box. Every app is plain HTTP inside the home network, so it's expected; click

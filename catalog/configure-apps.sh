@@ -49,6 +49,8 @@ if has filebrowser && [[ ! -f $SRV/appdata/filebrowser/database/filebrowser.db ]
   fi
 fi
 
+# Tailscale needs the tun device; modules-load.d loads it at every start after this one.
+has tailscale && [[ -z $root ]] && { modprobe tun || true; }
 compose up -d
 setup connect
 

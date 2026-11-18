@@ -208,6 +208,7 @@ applyButton.addEventListener("click", () => {
           done.hidden = false;
           setBusy(false);
           loadApps();
+          loadRemote();
         })
         .catch(() => {
           setBusy(false);
@@ -229,19 +230,57 @@ const lookTitle = document.getElementById("look-title");
 const lookTheme = document.getElementById("look-theme");
 const lookColor = document.getElementById("look-color");
 const lookPicture = document.getElementById("look-picture");
-const lookRemove = document.getElementById("look-remove");
+const lookPictures = document.getElementById("look-pictures");
 const lookStatus = document.getElementById("look-status");
+const BACKGROUNDS = "/var/lib/homeserver/catalog/backgrounds";
 for (const c of COLORS) lookColor.append(new Option(c[0].toUpperCase() + c.slice(1), c));
+// What Save sends as "background": keep, remove or builtin:<name>; a file picked below replaces it.
+let lookChoice = "keep";
+
+function pictureTile(label, choice, path) {
+  const tile = document.createElement("button");
+  tile.type = "button";
+  tile.className = "picture";
+  tile.dataset.choice = choice;
+  const thumb = document.createElement(path ? "img" : "span");
+  thumb.className = path ? "" : "none";
+  if (path) {
+    thumb.alt = "";
+    cockpit.file(path, { binary: true }).read()
+      .then(data => { thumb.src = URL.createObjectURL(new Blob([data], { type: "image/jpeg" })); })
+      .catch(() => {});
+  } else {
+    thumb.textContent = "No picture";
+  }
+  tile.append(thumb, label);
+  tile.addEventListener("click", () => { lookPicture.value = ""; choosePicture(choice); });
+  lookPictures.append(tile);
+}
+
+function choosePicture(choice) {
+  lookChoice = choice;
+  for (const tile of lookPictures.children) tile.classList.toggle("chosen", tile.dataset.choice === choice);
+}
+
+lookPicture.addEventListener("change", () => choosePicture(lookPicture.files.length ? "file" : "keep"));
 
 function loadLook() {
   cockpit.file("/etc/homeserver/dashboard.json", { syntax: JSON }).read()
-    .then(saved => {
+    .then(async saved => {
       const look = { title: "Home Server", theme: "light", color: "stone", background: "", ...(saved || {}) };
       lookTitle.value = look.title;
       lookTheme.value = look.theme;
       lookColor.value = look.color;
-      document.getElementById("look-remove-row").hidden = !look.background;
-      lookRemove.checked = false;
+      const names = (await cockpit.spawn(["/usr/bin/ls", BACKGROUNDS]).catch(() => ""))
+        .split("\n").filter(n => n.endsWith(".jpg")).map(n => n.slice(0, -4));
+      lookPictures.replaceChildren();
+      pictureTile("None", "remove");
+      for (const n of names) pictureTile(n[0].toUpperCase() + n.slice(1), "builtin:" + n, `${BACKGROUNDS}/${n}.jpg`);
+      if (look.background && !look.background.startsWith("builtin-"))
+        pictureTile("Your picture", "keep", "/srv/appdata/homepage/images/" + look.background);
+      const builtin = look.background.match(/^builtin-(.+)\.jpg$/);
+      choosePicture(!look.background ? "remove" : builtin ? "builtin:" + builtin[1] : "keep");
+      lookChoice = "keep";
     })
     .catch(() => {});
 }
@@ -262,8 +301,7 @@ document.getElementById("look-save").addEventListener("click", async () => {
   lookStatus.className = "status";
   lookStatus.textContent = "Saving...";
   try {
-    let background = lookRemove.checked ? "remove" : "keep";
-    if (lookPicture.files.length) background = await pictureData(lookPicture.files[0]);
+    const background = lookChoice === "file" ? await pictureData(lookPicture.files[0]) : lookChoice;
     const out = await cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "look"], { err: "message" })
       .input(JSON.stringify({ title: lookTitle.value, theme: lookTheme.value, color: lookColor.value, background }));
     lookStatus.textContent = out.trim() || "Saved.";
@@ -276,6 +314,51 @@ document.getElementById("look-save").addEventListener("click", async () => {
   save.disabled = false;
 });
 
+// Remote access: shown when Tailscale is installed. Until it's connected, shows the login link
+// and checks again every few seconds.
+const remote = document.getElementById("remote");
+const remoteText = document.getElementById("remote-text");
+const remoteUrl = document.getElementById("remote-url");
+const remoteError = document.getElementById("remote-error");
+let remoteTimer = null;
+
+function showRemote(info) {
+  remote.hidden = info.state === "off";
+  const login = info.state === "NeedsLogin" && info.login;
+  document.getElementById("remote-link").hidden = !login;
+  document.getElementById("remote-actions").hidden = info.state !== "Running";
+  if (info.state === "Running") {
+    const ip = info.ips.find(a => !a.includes(":")) || info.ips[0] || "";
+    const name = info.name.split(".")[0];
+    remoteText.textContent = `Connected to Tailscale as ${info.name}. On a phone or computer with the Tailscale ` +
+      `app, signed in to the same account, open http://${name}/ (or http://${ip}/) from anywhere.`;
+  } else if (login) {
+    remoteText.textContent = "To use your apps away from home, connect this server to your Tailscale account: " +
+      "open this link on any phone or computer, sign in (or make a free account) and click Connect. " +
+      "Then install the Tailscale app on your phone and sign in with the same account.";
+    remoteUrl.href = remoteUrl.textContent = info.login;
+  } else {
+    remoteText.textContent = "Tailscale is starting...";
+  }
+  clearTimeout(remoteTimer);
+  if (info.state !== "Running" && info.state !== "off") remoteTimer = setTimeout(loadRemote, 5000);
+}
+
+function loadRemote() {
+  cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "remote", "status"], { err: "message" })
+    .then(out => showRemote(JSON.parse(out)))
+    .catch(() => { remote.hidden = true; });
+}
+
+document.getElementById("remote-logout").addEventListener("click", () => {
+  if (!window.confirm("Disconnect this server from Tailscale? Your apps can't be reached from outside the home until you connect it again.")) return;
+  remoteError.hidden = true;
+  cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "remote", "logout"], { err: "message" })
+    .then(() => setTimeout(loadRemote, 3000))
+    .catch(e => { remoteError.hidden = false; remoteError.textContent = e.message || String(e); });
+});
+
 check();
 loadApps();
 loadLook();
+loadRemote();

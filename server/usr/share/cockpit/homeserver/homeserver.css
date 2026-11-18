@@ -21,5 +21,10 @@ label { display: block; margin: 0.6rem 0 0.3rem; }
 .look { display: grid; grid-template-columns: max-content 1fr; gap: 0.7rem 1rem; align-items: center; max-width: 36rem; margin-bottom: 1rem; }
 .look label { margin: 0; }
 .look input[type=text], .look select { font-size: 1rem; padding: 0.45rem; border: 1px solid #8a8d90; border-radius: 4px; }
-label.inline { display: block; margin-top: 0.4rem; font-size: 0.92rem; }
 input[type=password] { font-size: 1rem; padding: 0.5rem; border: 1px solid #8a8d90; border-radius: 4px; min-width: 16rem; }
+.pictures { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.4rem 0 0.8rem; }
+.picture { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.3rem; background: none; color: #151515;
+           border: 2px solid transparent; border-radius: 6px; font-size: 0.85rem; }
+.picture.chosen { border-color: #0066cc; }
+.picture img, .picture .none { width: 8rem; height: 4.5rem; object-fit: cover; border-radius: 4px; }
+.picture .none { display: flex; align-items: center; justify-content: center; background: #f0f0f0; color: #6a6e73; }

@@ -6,6 +6,7 @@
 #                           owner's password, so the apps' logins and links are applied again too)
 #   catalog.sh apps         add and remove apps (run as root; stdin: password, then the apps wanted)
 #   catalog.sh look         change the dashboard's title, theme, color and picture (run as root; JSON on stdin)
+#   catalog.sh remote status|logout   Tailscale: JSON {"state", "login", "name", "ips"} or disconnect (as root)
 # The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release (also together in
 # catalog.bundle.tar, so a cached download can't pair one release's file with another's), signed with a
 # key that never leaves the maintainer's machine. /etc/homeserver/catalog-url (or homeserver.catalog=
@@ -99,8 +100,27 @@ case ${1:-} in
       { echo "This app catalog can't change the dashboard. Update the apps first." >&2; exit 1; }
     python3 "$installed/setup.py" --root / look
     ;;
+  remote)
+    ts=homeserver-tailscale-1
+    case ${2:-} in
+      status)
+        docker exec "$ts" tailscale status --json 2>/dev/null | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+me = d.get("Self") or {}
+print(json.dumps({"state": d.get("BackendState"), "login": d.get("AuthURL") or "",
+                  "name": (me.get("DNSName") or "").rstrip("."), "ips": me.get("TailscaleIPs") or []}))' 2>/dev/null ||
+          echo '{"state": "off"}'
+        ;;
+      logout)
+        # Logging out ends tailscale up; the restart starts a new login.
+        docker exec "$ts" tailscale logout && docker restart "$ts" >/dev/null
+        ;;
+      *) echo "usage: catalog.sh remote status|logout" >&2; exit 2 ;;
+    esac
+    ;;
   *)
-    sed -n '2,10p' "$0" >&2
+    sed -n '2,9p' "$0" >&2
     exit 2
     ;;
 esac
