@@ -28,12 +28,16 @@ ssh-keygen -q -Y verify -f "$signers" -I homeserver-catalog -n homeserver-catalo
   -s "$out/catalog.tar.gz.sig" < "$out/catalog.tar.gz" >/dev/null ||
   { echo "That key isn't the one in $signers" >&2; exit 1; }
 
+# Both files in one asset too: GitHub caches downloads of the "catalog" release for a few minutes, and
+# two separate files can come from different releases in that time. catalog.sh tries this one first.
+tar -C "$out" -cf "$out/catalog.bundle.tar" catalog.tar.gz catalog.tar.gz.sig
+
 notes="App catalog version $version: the app configs and setup that Home Server installs and updates from."
 gh release create "catalog-v$version" --latest=false --title "App catalog v$version" --notes "$notes" \
-  "$out/catalog.tar.gz" "$out/catalog.tar.gz.sig"
+  "$out/catalog.tar.gz" "$out/catalog.tar.gz.sig" "$out/catalog.bundle.tar"
 gh release view catalog >/dev/null 2>&1 ||
   gh release create catalog --latest=false --title "App catalog (newest)" \
     --notes "Always the newest app catalog. Servers and the installer download it from here."
-gh release upload catalog --clobber "$out/catalog.tar.gz" "$out/catalog.tar.gz.sig"
+gh release upload catalog --clobber "$out/catalog.tar.gz" "$out/catalog.tar.gz.sig" "$out/catalog.bundle.tar"
 rm -rf "$out"
 echo "Published app catalog v$version"

@@ -5,7 +5,8 @@
 #   catalog.sh update       install the newest release on this server (run as root; stdin may give the
 #                           owner's password, so the apps' logins and links are applied again too)
 #   catalog.sh apps         add and remove apps (run as root; stdin: password, then the apps wanted)
-# The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release, signed with a
+# The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release (also together in
+# catalog.bundle.tar, so a cached download can't pair one release's file with another's), signed with a
 # key that never leaves the maintainer's machine. /etc/homeserver/catalog-url (or homeserver.catalog=
 # on the kernel command line) points somewhere else, for testing.
 set -uo pipefail
@@ -21,9 +22,14 @@ fetch() {
   local dir=$1 tmp
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' RETURN
-  curl -fsSL --retry 2 --max-time 120 -o "$tmp/catalog.tar.gz" "$url/catalog.tar.gz" &&
-    curl -fsSL --retry 2 --max-time 30 -o "$tmp/catalog.tar.gz.sig" "$url/catalog.tar.gz.sig" ||
-    { echo "Couldn't download the app catalog" >&2; return 1; }
+  if curl -fsSL --retry 2 --max-time 120 -o "$tmp/bundle.tar" "$url/catalog.bundle.tar" 2>/dev/null; then
+    tar -xf "$tmp/bundle.tar" -C "$tmp" catalog.tar.gz catalog.tar.gz.sig ||
+      { echo "Couldn't unpack the app catalog" >&2; return 1; }
+  else
+    curl -fsSL --retry 2 --max-time 120 -o "$tmp/catalog.tar.gz" "$url/catalog.tar.gz" &&
+      curl -fsSL --retry 2 --max-time 30 -o "$tmp/catalog.tar.gz.sig" "$url/catalog.tar.gz.sig" ||
+      { echo "Couldn't download the app catalog" >&2; return 1; }
+  fi
   ssh-keygen -q -Y verify -f "$signers" -I homeserver-catalog -n homeserver-catalog \
     -s "$tmp/catalog.tar.gz.sig" < "$tmp/catalog.tar.gz" >/dev/null ||
     { echo "The app catalog's signature doesn't match; not using it" >&2; return 1; }
