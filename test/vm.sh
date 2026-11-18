@@ -11,16 +11,20 @@
 #   test/vm.sh --iso F    boot F instead of out/homeserver-usb.iso (e.g. an older release)
 #   test/vm.sh --extra 3  three small (16 GB) SATA disks instead of the 500 GB one, to test pooling.
 #                         Pass the same --extra when booting the installed system with --disk.
+#   test/vm.sh --extra-size 50   make new --extra disks 50 GB instead of 16 GB
+#   test/vm.sh --res 2560x1440   screen size (default 1920x1080), e.g. for recording at 2K
 set -euo pipefail
 cd "$(dirname "$0")/.."
 state=build/vm
 mkdir -p "$state"
 
-firmware=uefi net=1 stick=1 display=none extra=0 iso=out/homeserver-usb.iso
+firmware=uefi net=1 stick=1 display=none extra=0 extra_size=16 res=1920x1080 iso=out/homeserver-usb.iso
 while (( $# )); do
   arg=$1; shift
   case $arg in
     --extra) extra=$1; shift ;;
+    --extra-size) extra_size=$1; shift ;;
+    --res) res=$1; shift ;;
     --iso) iso=$1; shift ;;
     --bios) firmware=bios ;;
     --offline) net=0 ;;
@@ -36,7 +40,7 @@ done
 if (( extra )); then
   sata=()
   for i in $(seq "$extra"); do
-    [[ -f $state/extra$i.qcow2 ]] || qemu-img create -q -f qcow2 "$state/extra$i.qcow2" 16G
+    [[ -f $state/extra$i.qcow2 ]] || qemu-img create -q -f qcow2 "$state/extra$i.qcow2" "${extra_size}G"
     sata+=("$state/extra$i.qcow2")
   done
 else
@@ -46,7 +50,7 @@ fi
 
 args=(
   -enable-kvm -cpu host -smp 4 -m 4096 -machine q35
-  -device VGA,edid=on,xres=1920,yres=1080 -device qemu-xhci -device usb-tablet -device usb-kbd
+  -device "VGA,edid=on,xres=${res%x*},yres=${res#*x},vgamem_mb=64" -device qemu-xhci -device usb-tablet -device usb-kbd
   -display "$display" -vnc 127.0.0.1:7
   -qmp "unix:$state/qmp.sock,server,nowait"
   -serial "file:$state/serial.log"
