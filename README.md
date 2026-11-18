@@ -196,9 +196,10 @@ uncommitted changes. Servers never go back to older Home Server files: each rele
 ## Dashboard look
 
 The **Dashboard look (Homepage)** section of the Apps page changes the dashboard's title, light or
-dark theme, accent color and background picture, for every screen at once. Pick one of the built-in pictures or
-upload your own (JPEG, PNG or WebP, up to 15 MB). Uploading only works from another computer or
-phone: the server's own screen can't open a file window, so the built-in pictures are there for it.
+dark theme, accent color and background picture, for every screen at once. Pick one of the built-in
+pictures or upload your own (JPEG, PNG or WebP, up to 15 MB). Uploading only works from another
+computer or phone: the server's own screen can't open a file window, so the built-in pictures are
+there for it. Saving restarts Homepage, so reload it a few seconds later.
 
 ## Remote access
 
@@ -232,6 +233,10 @@ run without administrative access because of one sudo rule
   an empty part of the page to dismiss it, then click the box you want to type in.
 - Right after a reboot some dashboard tiles can show "API Error" while their app is still
   starting. The dashboard reloads itself until they're up.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: [SECURITY.md](SECURITY.md).
 
 ## License
 
