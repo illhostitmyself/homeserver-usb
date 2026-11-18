@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "groups": [
     {"name": "Always installed", "description": "Part of the server itself", "always": true,
      "apps": ["homepage", "cockpit", "security-updates"]},

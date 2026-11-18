@@ -13,6 +13,12 @@ SRV=/srv
 set +a
 compose() { docker compose -f "$cat/compose.yaml" "$@"; }
 
-compose pull --quiet
+# Registries sometimes refuse for a moment (rate limits, timeouts); keep trying for a few minutes.
+for try in 1 2 3 4 5; do
+  compose pull --quiet && break
+  (( try == 5 )) && { echo "Couldn't download the apps" >&2; exit 1; }
+  echo "Download failed; trying again in $((try * 30)) seconds" >&2
+  sleep $((try * 30))
+done
 compose up -d --remove-orphans
 python3 "$cat/setup.py" --root / dashboard

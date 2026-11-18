@@ -1,5 +1,6 @@
 [Unit]
 Description=Home Server app update (move the apps to the catalog's versions after an update from the USB stick)
+StartLimitIntervalSec=0
 ConditionKernelCommandLine=!boot=live
 ConditionPathExists=/var/lib/homeserver/refresh-images
 Wants=network-online.target
@@ -8,6 +9,9 @@ Requires=docker.service
 Before=homeserver.service
 
 [Service]
+# Tries again every minute until the apps are on the catalog's versions.
+Restart=on-failure
+RestartSec=60
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/var/lib/homeserver/catalog/update.sh
