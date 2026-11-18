@@ -221,5 +221,61 @@ applyButton.addEventListener("click", () => {
     });
 });
 
+// Dashboard look: the choices live in /etc/homeserver/dashboard.json (readable by everyone); saving goes
+// through catalog.sh look, which writes the Homepage settings.
+const COLORS = ["slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow", "lime", "green",
+  "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"];
+const lookTitle = document.getElementById("look-title");
+const lookTheme = document.getElementById("look-theme");
+const lookColor = document.getElementById("look-color");
+const lookPicture = document.getElementById("look-picture");
+const lookRemove = document.getElementById("look-remove");
+const lookStatus = document.getElementById("look-status");
+for (const c of COLORS) lookColor.append(new Option(c[0].toUpperCase() + c.slice(1), c));
+
+function loadLook() {
+  cockpit.file("/etc/homeserver/dashboard.json", { syntax: JSON }).read()
+    .then(saved => {
+      const look = { title: "Home Server", theme: "light", color: "stone", background: "", ...(saved || {}) };
+      lookTitle.value = look.title;
+      lookTheme.value = look.theme;
+      lookColor.value = look.color;
+      document.getElementById("look-remove-row").hidden = !look.background;
+      lookRemove.checked = false;
+    })
+    .catch(() => {});
+}
+
+function pictureData(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",", 2)[1]);
+    reader.onerror = () => reject(new Error("That picture couldn't be read"));
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById("look-save").addEventListener("click", async () => {
+  const save = document.getElementById("look-save");
+  save.disabled = true;
+  lookStatus.hidden = false;
+  lookStatus.className = "status";
+  lookStatus.textContent = "Saving...";
+  try {
+    let background = lookRemove.checked ? "remove" : "keep";
+    if (lookPicture.files.length) background = await pictureData(lookPicture.files[0]);
+    const out = await cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "look"], { err: "message" })
+      .input(JSON.stringify({ title: lookTitle.value, theme: lookTheme.value, color: lookColor.value, background }));
+    lookStatus.textContent = out.trim() || "Saved.";
+    lookPicture.value = "";
+    loadLook();
+  } catch (e) {
+    lookStatus.className = "error";
+    lookStatus.textContent = e.message || String(e);
+  }
+  save.disabled = false;
+});
+
 check();
 loadApps();
+loadLook();

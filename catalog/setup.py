@@ -7,6 +7,8 @@ every step is safe to repeat, and also undoes the links to apps that were remove
   setup.py --root DIR link       sign Seerr in through Jellyfin and link it to Sonarr/Radarr
                                  (after Recyclarr, so Seerr can use the TRaSH profiles)
   setup.py --root DIR dashboard  write the Homepage config
+  setup.py --root DIR look       save the dashboard's title, theme, color and background picture (JSON on
+                                 stdin, from the Cockpit page), then write the Homepage config
 
 DIR is the installed system's root: the new disk during install, / afterwards. Every app gets the
 name and password typed in the installer (or on the Cockpit page), read from DIR/etc/homeserver/password.
@@ -15,6 +17,7 @@ Audiobookshelf and Seerr, and setting up an app for the first time.
 """
 import argparse
 import base64
+import binascii
 import hashlib
 import http.cookiejar
 import json
@@ -296,9 +299,63 @@ def prepare(ctx):
 
 # --- dashboard -----------------------------------------------------------------------------
 
+# What the Cockpit page can change about the dashboard. /etc/homeserver/dashboard.json holds the choices.
+LOOK_DEFAULTS = {"title": "Home Server", "theme": "light", "color": "stone", "background": ""}
+COLORS = ["slate", "gray", "zinc", "neutral", "stone", "red", "orange", "amber", "yellow", "lime", "green",
+          "emerald", "teal", "cyan", "sky", "blue", "indigo", "violet", "purple", "fuchsia", "pink", "rose"]
+PICTURES = {b"\xff\xd8\xff": "jpg", b"\x89PNG": "png", b"RIFF": "webp"}
+
+
+def read_look(ctx):
+    try:
+        saved = json.loads((ctx.etc / "dashboard.json").read_text())
+    except (OSError, ValueError):
+        saved = {}
+    return {k: saved.get(k, v) for k, v in LOOK_DEFAULTS.items()}
+
+
+def look(ctx):
+    """{"title", "theme", "color", "background": "keep" | "remove" | base64 picture} on stdin."""
+    new = json.load(sys.stdin)
+    current = read_look(ctx)
+    title = str(new.get("title", current["title"])).strip()[:60] or LOOK_DEFAULTS["title"]
+    theme = new.get("theme") if new.get("theme") in ("light", "dark") else current["theme"]
+    color = new.get("color") if new.get("color") in COLORS else current["color"]
+    background = current["background"]
+    images = ctx.appdata / "homepage/images"
+    picture = new.get("background", "keep")
+    data = ext = None
+    if picture not in ("keep", "remove", ""):
+        try:
+            data = base64.b64decode(picture, validate=True)
+        except (binascii.Error, ValueError):
+            sys.exit("That picture couldn't be read")
+        if len(data) > 15 * 1024 * 1024:
+            sys.exit("That picture is too big (15 MB at most)")
+        ext = next((e for magic, e in PICTURES.items() if data.startswith(magic)), None)
+        if not ext or (ext == "webp" and data[8:12] != b"WEBP"):
+            sys.exit("Use a JPEG, PNG or WebP picture")
+    if picture == "remove" or data:
+        for old in images.glob("background.*"):
+            old.unlink()
+        background = ""
+    if data:
+        ctx.mkdir(images)
+        path = images / f"background.{ext}"
+        path.write_bytes(data)
+        ctx.own(path)
+        background = path.name
+    saved = {"title": title, "theme": theme, "color": color, "background": background}
+    (ctx.etc / "dashboard.json").write_text(json.dumps(saved, indent=2) + "\n")
+    (ctx.etc / "dashboard.json").chmod(0o644)
+    dashboard(ctx)
+    print("Saved. Reload the dashboard to see it.")
+
+
 def dashboard(ctx):
     # Apps appear through their homepage.* container labels; only things that aren't containers
     # are listed here. Homepage reads YAML, and JSON is valid YAML.
+    style = read_look(ctx)
     server = [{"Server settings": {"icon": "cockpit.png", "href": f"http://{ctx.host}:9090",
                                    "description": "Updates, disks, restart and shut down"}},
               {"Apps": {"icon": "mdi-apps", "href": f"http://{ctx.host}:9090/homeserver",
@@ -316,16 +373,21 @@ def dashboard(ctx):
         "services.yaml": [{"Server": server}],
         "docker.yaml": {"local": {"socket": "/var/run/docker.sock"}},
         "settings.yaml": {
-            "title": "Home Server", "theme": "light", "color": "stone", "headerStyle": "clean",
+            "title": style["title"], "theme": style["theme"], "color": style["color"], "headerStyle": "clean",
             "target": "_blank", "hideVersion": True, "statusStyle": "dot",
             "layout": {"Watch": {"style": "row", "columns": 2}, "Downloads": {"style": "row", "columns": 4},
                        "Files": {"style": "row", "columns": 1}, "Server": {"style": "row", "columns": 3}}},
         "widgets.yaml": [
-            {"greeting": {"text_size": "2xl", "text": "Home Server"}},
+            {"greeting": {"text_size": "2xl", "text": style["title"]}},
             {"resources": {"cpu": True, "memory": True, "disk": "/srv/data"}},
             {"datetime": {"text_size": "xl", "format": {"dateStyle": "long", "timeStyle": "short"}}}],
         "bookmarks.yaml": [],
     }
+    if style["background"]:
+        files["settings.yaml"]["background"] = {"image": "/images/" + style["background"], "blur": "sm",
+                                                "brightness": 75}
+        files["settings.yaml"]["cardBlur"] = "md"
+    ctx.mkdir(ctx.appdata / "homepage/images")
     for name, data in files.items():
         ctx.write(ctx.appdata / "homepage" / name, json.dumps(data, indent=2) + "\n")
     ctx.write(ctx.appdata / "homepage/custom.js", RELOAD_ON_ERRORS + SAME_HOST_LINKS.replace("HOST", ctx.host))
@@ -616,7 +678,7 @@ def connect_seerr(ctx):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", default="/")
-    steps = {"prepare": prepare, "connect": connect, "link": link, "dashboard": dashboard}
+    steps = {"prepare": prepare, "connect": connect, "link": link, "dashboard": dashboard, "look": look}
     parser.add_argument("step", choices=list(steps))
     args = parser.parse_args()
     steps[args.step](Context(args.root))

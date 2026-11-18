@@ -18,4 +18,8 @@ pre { background: #f0f0f0; padding: 1rem; max-height: 24rem; overflow: auto; whi
 .app.removing .name::after { content: " (removing)"; color: #c9190b; font-weight: 400; }
 label { display: block; margin: 0.6rem 0 0.3rem; }
 .row { display: flex; gap: 0.7rem; flex-wrap: wrap; }
+.look { display: grid; grid-template-columns: max-content 1fr; gap: 0.7rem 1rem; align-items: center; max-width: 36rem; margin-bottom: 1rem; }
+.look label { margin: 0; }
+.look input[type=text], .look select { font-size: 1rem; padding: 0.45rem; border: 1px solid #8a8d90; border-radius: 4px; }
+label.inline { display: block; margin-top: 0.4rem; font-size: 0.92rem; }
 input[type=password] { font-size: 1rem; padding: 0.5rem; border: 1px solid #8a8d90; border-radius: 4px; min-width: 16rem; }

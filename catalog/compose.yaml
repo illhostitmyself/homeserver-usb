@@ -26,6 +26,7 @@ services:
       HOMEPAGE_ALLOWED_HOSTS: "*"
     volumes:
       - ${SRV}/appdata/homepage:/app/config
+      - ${SRV}/appdata/homepage/images:/app/public/images:ro
       - ${SRV}:/srv:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
 

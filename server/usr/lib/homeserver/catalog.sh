@@ -5,6 +5,7 @@
 #   catalog.sh update       install the newest release on this server (run as root; stdin may give the
 #                           owner's password, so the apps' logins and links are applied again too)
 #   catalog.sh apps         add and remove apps (run as root; stdin: password, then the apps wanted)
+#   catalog.sh look         change the dashboard's title, theme, color and picture (run as root; JSON on stdin)
 # The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release (also together in
 # catalog.bundle.tar, so a cached download can't pair one release's file with another's), signed with a
 # key that never leaves the maintainer's machine. /etc/homeserver/catalog-url (or homeserver.catalog=
@@ -92,8 +93,14 @@ case ${1:-} in
       { echo "This app catalog can't add or remove apps. Update the apps first." >&2; exit 1; }
     "$installed/apps.sh"
     ;;
+  look)
+    lock
+    grep -q '"look"' "$installed/setup.py" 2>/dev/null ||
+      { echo "This app catalog can't change the dashboard. Update the apps first." >&2; exit 1; }
+    python3 "$installed/setup.py" --root / look
+    ;;
   *)
-    sed -n '2,9p' "$0" >&2
+    sed -n '2,10p' "$0" >&2
     exit 2
     ;;
 esac

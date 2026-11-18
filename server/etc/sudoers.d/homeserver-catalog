@@ -1,3 +1,5 @@
-# Lets the "Home Server apps" page in Cockpit install a new app catalog, and add or remove apps from
-# it, without administrative access. Only catalog releases signed with the Home Server key are used.
-%sudo ALL=(root) NOPASSWD: /usr/lib/homeserver/catalog.sh update, /usr/lib/homeserver/catalog.sh apps
+# Lets the "Home Server apps" page in Cockpit install a new app catalog, add or remove apps from it, and
+# change how the dashboard looks, without administrative access. Only catalog releases signed with the
+# Home Server key are used.
+%sudo ALL=(root) NOPASSWD: /usr/lib/homeserver/catalog.sh update, /usr/lib/homeserver/catalog.sh apps, \
+  /usr/lib/homeserver/catalog.sh look
