@@ -10,6 +10,15 @@
 </style>
 <p>Your home server is getting ready.<small>The first start can take 10 minutes. This page changes by itself when it's done.</small></p>
 <script>
-  setInterval(() => fetch("http://localhost/", { mode: "no-cors" }).then(() => location.href = "http://localhost/", () => {}), 3000);
+  // Opens the dashboard as http://<name>.local/, the address every device uses. If that name doesn't
+  // answer for a minute while the dashboard does, localhost.
+  const host = new URLSearchParams(location.search).get("host");
+  const named = host ? `http://${host}.local/` : "http://localhost/";
+  let misses = 0;
+  const open = url => fetch(url, { mode: "no-cors" }).then(() => { location.href = url; return true; }, () => false);
+  setInterval(async () => {
+    if (await open(named)) return;
+    if (++misses >= 20) open("http://localhost/");
+  }, 3000);
 </script>
 </html>

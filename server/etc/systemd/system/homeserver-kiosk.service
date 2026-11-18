@@ -16,7 +16,8 @@ StandardInput=tty-fail
 UtmpIdentifier=tty1
 UtmpMode=user
 Environment=XDG_SESSION_TYPE=wayland MOZ_ENABLE_WAYLAND=1
-ExecStart=/usr/bin/cage -d -s -- /usr/bin/firefox-esr file:///usr/share/homeserver/starting.html
+# %H is this computer's name: the screen opens the dashboard as <name>.local, like other devices.
+ExecStart=/usr/bin/cage -d -s -- /usr/bin/firefox-esr "file:///usr/share/homeserver/starting.html?host=%H"
 Restart=always
 RestartSec=2
 

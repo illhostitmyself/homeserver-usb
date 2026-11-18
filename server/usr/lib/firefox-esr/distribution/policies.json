@@ -12,6 +12,7 @@
     "UserMessaging": { "WhatsNew": false, "ExtensionRecommendations": false, "FeatureRecommendations": false,
                        "SkipOnboarding": true, "MoreFromMozilla": false },
     "Preferences": {
+      "security.insecure_field_warning.contextual.enabled": { "Value": false, "Status": "locked" },
       "layout.css.devPixelsPerPx": { "Value": "1.25", "Status": "default" },
       "browser.sessionstore.resume_from_crash": { "Value": false, "Status": "default" }
     }
