@@ -98,7 +98,9 @@ case ${1:-} in
     lock
     grep -q '"look"' "$installed/setup.py" 2>/dev/null ||
       { echo "This app catalog can't change the dashboard. Update the apps first." >&2; exit 1; }
-    python3 "$installed/setup.py" --root / look
+    python3 "$installed/setup.py" --root / look || exit 1
+    # Homepage only reads a new picture and its settings when it starts.
+    docker restart homeserver-homepage-1 >/dev/null 2>&1 || true
     ;;
   remote)
     ts=homeserver-tailscale-1

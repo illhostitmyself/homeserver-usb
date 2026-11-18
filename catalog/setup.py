@@ -361,7 +361,7 @@ def look(ctx):
     (ctx.etc / "dashboard.json").write_text(json.dumps(saved, indent=2) + "\n")
     (ctx.etc / "dashboard.json").chmod(0o644)
     dashboard(ctx)
-    print("Saved. Reload Homepage (the dashboard with the app tiles, F5) to see it.")
+    print("Saved. Reload Homepage (the dashboard with the app tiles, F5) in a few seconds to see it.")
 
 
 def dashboard(ctx):
@@ -626,6 +626,47 @@ def connect_jellyfin(ctx):
     ctx.save_secrets()
 
 
+# Subtitle sources that need no account; the owner can add others (OpenSubtitles, with an account).
+BAZARR_PROVIDERS = ["embeddedsubtitles", "gestdown", "tvsubtitles", "yifysubtitles"]
+
+
+def connect_bazarr(ctx):
+    # Without a languages profile Bazarr fetches nothing. One profile (the installer's language plus
+    # English), the default for new shows and movies and given to those that have none; only when
+    # Bazarr has no profile yet, since saving profiles replaces all of them.
+    base = "http://localhost:6767/api"
+    wait(base + "/system/ping")
+    headers = {"X-API-KEY": ctx.secrets["BAZARR_KEY"]}
+
+    def post(path, fields):
+        body = urllib.parse.urlencode(fields, doseq=True).encode()
+        req = urllib.request.Request(base + path, data=body, method="POST", headers={
+            **headers, "Content-Type": "application/x-www-form-urlencoded"})
+        urllib.request.urlopen(req, timeout=60).read()
+
+    get = lambda path: call("GET", base + path, headers=headers)
+    general = get("/system/settings")["general"]
+    if not general.get("enabled_providers"):
+        post("/system/settings", {"settings-general-enabled_providers": BAZARR_PROVIDERS})
+    if get("/system/languages/profiles"):
+        return
+    known = {lang["code2"] for lang in get("/system/languages")}
+    codes = [c for c in dict.fromkeys([language(ctx.root)[0], "en"]) if c in known]
+    profile = {"profileId": 1, "name": "Default", "cutoff": None, "mustContain": [], "mustNotContain": [],
+               "originalFormat": False, "tag": None,
+               "items": [{"id": i + 1, "language": c, "audio_exclude": "False", "hi": "False", "forced": "False"}
+                         for i, c in enumerate(codes)]}
+    post("/system/settings", {"languages-enabled": codes, "languages-profiles": json.dumps([profile]),
+                              "settings-general-serie_default_enabled": "true",
+                              "settings-general-serie_default_profile": "1",
+                              "settings-general-movie_default_enabled": "true",
+                              "settings-general-movie_default_profile": "1"})
+    for kind, key in (("series", "sonarrSeriesId"), ("movies", "radarrId")):
+        items = [i[key] for i in get(f"/{kind}?start=0&length=-1")["data"] if i.get("profileId") is None]
+        if items:
+            post(f"/{kind}", {"seriesid" if kind == "series" else "radarrid": items, "profileid": ["1"] * len(items)})
+
+
 def connect_sabnzbd(ctx):
     # sabnzbd.ini is only written at install; categories added to the catalog later reach older
     # servers here. Servers installed before catalog 10 also got SABnzbd's own movies and tv
@@ -646,10 +687,10 @@ def connect(ctx):
     for name in ("sonarr", "radarr", "chaptarr"):
         if name in ctx.apps:
             connect_arr(ctx, name)
-    steps = {"prowlarr": connect_prowlarr, "jellyfin": connect_jellyfin,
+    steps = {"prowlarr": connect_prowlarr, "bazarr": connect_bazarr, "jellyfin": connect_jellyfin,
              "audiobookshelf": connect_audiobookshelf}
     for name, step in steps.items():
-        if name in ctx.apps and (name == "prowlarr" or ctx.has_password):
+        if name in ctx.apps and (name in ("prowlarr", "bazarr") or ctx.has_password):
             step(ctx)
 
 
@@ -694,10 +735,17 @@ def connect_seerr(ctx):
             for server in ours:
                 call("DELETE", f"{base}/settings/{name}/{server['id']}", opener=session)
             continue
-        if ours:
-            continue
         key = ctx.secrets[name.upper() + "_KEY"]
         profile = pick_profile(arr_api(port, key)("GET", "/qualityprofile"), preferred)
+        if ours:
+            # Linked before Recyclarr's profiles existed (no internet then): moved to the TRaSH profile
+            # once it's there. A profile the owner picked stays.
+            server = ours[0]
+            if server.get("activeProfileName") == "HD-1080p" and profile["name"] == preferred[0]:
+                body = {k: v for k, v in server.items() if k != "id"}
+                body.update(activeProfileId=profile["id"], activeProfileName=profile["name"])
+                call("PUT", f"{base}/settings/{name}/{server['id']}", body, opener=session)
+            continue
         call("POST", f"{base}/settings/{name}", {
             **common, **extra, "name": name.capitalize(), "hostname": name, "port": port, "apiKey": key,
             "activeProfileId": profile["id"], "activeProfileName": profile["name"],

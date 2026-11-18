@@ -30,7 +30,7 @@ Radarr and Chaptarr add qBittorrent if no downloader is ticked). Homepage is alw
 | [Audiobookshelf](https://www.audiobookshelf.org) | Audiobooks, ebooks and podcasts, with the libraries already created |
 | Sonarr, Radarr, [Chaptarr](https://hub.docker.com/r/chaptarr/chaptarr) | TV, movies, and books/audiobooks, each linked to every installed downloader with its own category |
 | Prowlarr | Download sources, shared with Sonarr, Radarr and Chaptarr, and linked to the downloaders for grabbing straight from a search (category `prowlarr`) |
-| Bazarr | Subtitles, linked to Sonarr and Radarr |
+| Bazarr | Subtitles in the installer's language and English, linked to Sonarr and Radarr, from sources that need no account (add OpenSubtitles with your own account for more) |
 | [Recyclarr](https://recyclarr.dev) | Keeps Sonarr and Radarr on the TRaSH Guides profiles |
 | qBittorrent | Torrent downloader |
 | [SABnzbd](https://sabnzbd.org) | Usenet downloader; you add your own Usenet provider |
