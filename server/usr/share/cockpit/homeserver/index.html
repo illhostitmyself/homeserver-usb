@@ -14,7 +14,14 @@
   <p>Your apps' settings and versions come from the Home Server app catalog. When a new catalog is
     out, update here: your apps, their settings and your files stay as they are.</p>
   <p id="status" class="status">Checking for updates...</p>
-  <button id="update" hidden>Update the apps</button>
+  <div id="update-box" hidden>
+    <label for="update-password">Your password (the one you use for your apps)</label>
+    <div class="row">
+      <input id="update-password" type="password" autocomplete="current-password">
+      <button id="update">Update the apps</button>
+    </div>
+    <p id="update-error" class="error" hidden></p>
+  </div>
 
   <h2>Your apps</h2>
   <p>Tick an app to add it, untick it to remove it. A removed app keeps its settings, so adding it

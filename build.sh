@@ -7,10 +7,7 @@ mkdir -p build out
 
 docker build -q -t homeserver-usb-builder builder >/dev/null
 # The catalog the ISO falls back to without internet: only what every server always gets.
-rm -rf build/catalog-minimal
-mkdir -p build/catalog-minimal
-cp -a catalog/. build/catalog-minimal/
-rm -f build/catalog-minimal/release.sh
+catalog/bundle.sh build/catalog-minimal
 python3 - build/catalog-minimal/catalog.json <<'PY'
 import json, sys
 path = sys.argv[1]
@@ -22,7 +19,7 @@ json.dump(cat, open(path, "w"), indent=2)
 PY
 
 version=$(git describe --tags --always --dirty 2>/dev/null || echo unknown)
-docker run --rm --privileged --hostname builder -e VERSION="$version" \
+docker run --rm --privileged --hostname builder -e VERSION="$version" -e SERVER_REV="$(< build/catalog-minimal/server-rev)" \
   -v "$PWD:/src:ro" -v "$PWD/build:/build" -v "$PWD/out:/out" \
   homeserver-usb-builder /src/builder/build-iso.sh
 

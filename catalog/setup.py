@@ -9,7 +9,9 @@ every step is safe to repeat, and also undoes the links to apps that were remove
   setup.py --root DIR dashboard  write the Homepage config
 
 DIR is the installed system's root: the new disk during install, / afterwards. Every app gets the
-name and password typed in the installer.
+name and password typed in the installer (or on the Cockpit page), read from DIR/etc/homeserver/password.
+Without that file (an update from the USB stick), the steps that need it are skipped: logins, Jellyfin,
+Audiobookshelf and Seerr, and setting up an app for the first time.
 """
 import argparse
 import base64
@@ -72,6 +74,10 @@ class Context:
 
     def save_secrets(self):
         write_env(self.etc / "secrets.env", self.secrets)
+
+    @property
+    def has_password(self):
+        return (self.etc / "password").exists()
 
     @property
     def password(self):
@@ -246,7 +252,6 @@ ARRS = {"sonarr": 8989, "radarr": 7878, "prowlarr": 9696, "chaptarr": 8789}
 
 
 def prepare(ctx):
-    ctx.password  # fails early if the installer didn't leave one
     for d in ([f"torrents/{c}" for c in CATEGORIES] + [f"usenet/complete/{c}" for c in CATEGORIES] +
               ["usenet/incomplete"] + [f"media/{m}" for m in ("movies", "tv", "books", "audiobooks", "podcasts")]):
         ctx.mkdir(ctx.data / d)
@@ -263,19 +268,19 @@ def prepare(ctx):
         if name in ctx.apps and not path.exists():
             ctx.write(path, arr_config(port, ctx.secrets[name.upper() + "_KEY"], name.capitalize()))
     qbt = ctx.appdata / "qbittorrent/qBittorrent"
-    if "qbittorrent" in ctx.apps and not (qbt / "qBittorrent.conf").exists():
+    if "qbittorrent" in ctx.apps and not (qbt / "qBittorrent.conf").exists() and ctx.has_password:
         ctx.write(qbt / "qBittorrent.conf", qbittorrent_config(ctx.user, ctx.password))
         ctx.write(qbt / "categories.json", json.dumps(
             {c: {"save_path": f"/data/torrents/{c}"} for c in CATEGORIES}, indent=2))
     sab = ctx.appdata / "sabnzbd/sabnzbd.ini"
-    if "sabnzbd" in ctx.apps and not sab.exists():
+    if "sabnzbd" in ctx.apps and not sab.exists() and ctx.has_password:
         ctx.write(sab, sabnzbd_config(ctx))
         sab.chmod(0o600)
     bazarr = ctx.appdata / "bazarr/config/config.yaml"
-    if "bazarr" in ctx.apps and not bazarr.exists():
+    if "bazarr" in ctx.apps and not bazarr.exists() and ctx.has_password:
         ctx.write(bazarr, bazarr_config(ctx))
         bazarr.chmod(0o600)
-    elif "bazarr" in ctx.apps:
+    elif "bazarr" in ctx.apps and bazarr.exists():
         text = bazarr.read_text()
         for app in ("sonarr", "radarr"):
             text = re.sub(rf"^(\s+use_{app}:) \w+$", rf"\1 {str(app in ctx.apps).lower()}", text, flags=re.M)
@@ -407,18 +412,18 @@ def connect_arr(ctx, name):
     api = arr_api(port, ctx.secrets[name.upper() + "_KEY"], version)
     categories = {"sonarr": {"tvCategory": "tv"}, "radarr": {"movieCategory": "movies"},
                   "chaptarr": {"audiobookCategory": "audiobooks", "ebookCategory": "books"}}[name]
-    clients = {"qbittorrent": ("QBittorrent", "qBittorrent", {"username": ctx.user, "password": ctx.password}),
-               "sabnzbd": ("Sabnzbd", "SABnzbd", {"apiKey": ctx.secrets["SABNZBD_KEY"]})}
+    clients = {"qbittorrent": ("QBittorrent", "qBittorrent", lambda: {"username": ctx.user, "password": ctx.password}),
+               "sabnzbd": ("Sabnzbd", "SABnzbd", lambda: {"apiKey": ctx.secrets["SABNZBD_KEY"]})}
     for client in api("GET", "/downloadclient"):
         if field(client, "host") in clients and field(client, "host") not in ctx.apps:
             api("DELETE", f"/downloadclient/{client['id']}")
     have = {c["implementation"] for c in api("GET", "/downloadclient")}
     for app, (impl, label, login) in clients.items():
-        if app not in ctx.apps or impl in have:
+        if app not in ctx.apps or impl in have or (app == "qbittorrent" and not ctx.has_password):
             continue
         schema = next(x for x in api("GET", "/downloadclient/schema") if x["implementation"] == impl)
         schema.update(name=label, enable=True, priority=1)
-        fill(schema, host=app, port=8080, **login, **categories)
+        fill(schema, host=app, port=8080, **login(), **categories)
         api("POST", "/downloadclient?forceSave=true", schema)
 
     if not api("GET", "/rootfolder"):
@@ -442,7 +447,8 @@ def connect_arr(ctx, name):
                       extraFileExtensions="srt,ass,ssa,sub,idx", downloadPropersAndRepacks="doNotPrefer",
                       enableMediaInfo=True)
         update_config(api, "naming", **{"renameEpisodes" if name == "sonarr" else "renameMovies": True})
-    set_login(api, ctx)
+    if ctx.has_password:
+        set_login(api, ctx)
 
 
 def connect_prowlarr(ctx):
@@ -464,7 +470,8 @@ def connect_prowlarr(ctx):
         fill(schema, prowlarrUrl="http://prowlarr:9696", baseUrl=f"http://{name}:{ARRS[name]}",
              apiKey=ctx.secrets[name.upper() + "_KEY"])
         prowlarr("POST", "/applications?forceSave=true", schema)
-    set_login(prowlarr, ctx)
+    if ctx.has_password:
+        set_login(prowlarr, ctx)
 
 
 def connect_audiobookshelf(ctx):
@@ -528,12 +535,12 @@ def connect(ctx):
     steps = {"prowlarr": connect_prowlarr, "jellyfin": connect_jellyfin,
              "audiobookshelf": connect_audiobookshelf}
     for name, step in steps.items():
-        if name in ctx.apps:
+        if name in ctx.apps and (name == "prowlarr" or ctx.has_password):
             step(ctx)
 
 
 def link(ctx):
-    if "seerr" in ctx.apps:
+    if "seerr" in ctx.apps and ctx.has_password:
         connect_seerr(ctx)
 
 

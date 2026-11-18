@@ -13,6 +13,8 @@ trap 'systemctl stop homeserver-install-docker' EXIT
 for _ in $(seq 60); do docker info >/dev/null 2>&1 && break; sleep 1; done
 docker info >/dev/null || { echo "Docker didn't start" >&2; exit 1; }
 
+# The catalog's Home Server files, if they're newer than this USB stick's.
+"$root/var/lib/homeserver/catalog/server.sh" "$root" || echo "Couldn't install the app catalog's Home Server files" >&2
 if "$root/var/lib/homeserver/catalog/configure-apps.sh" "$root"; then
   echo "Apps are set up"
 else

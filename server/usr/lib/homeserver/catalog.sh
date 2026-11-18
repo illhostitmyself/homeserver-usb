@@ -2,7 +2,8 @@
 # The app catalog: the apps' configs and setup, published as signed releases in the repo.
 #   catalog.sh fetch DIR    download the newest release, check its signature, unpack it into DIR
 #   catalog.sh status       JSON for the Cockpit page: {"installed": N, "latest": N or null}
-#   catalog.sh update       install the newest release on this server (run as root)
+#   catalog.sh update       install the newest release on this server (run as root; stdin may give the
+#                           owner's password, so the apps' logins and links are applied again too)
 #   catalog.sh apps         add and remove apps (run as root; stdin: password, then the apps wanted)
 # The release is catalog.tar.gz + catalog.tar.gz.sig on the repo's "catalog" release, signed with a
 # key that never leaves the maintainer's machine. /etc/homeserver/catalog-url (or homeserver.catalog=
@@ -60,6 +61,12 @@ case ${1:-} in
       exit 0
     fi
     echo "Updating the apps from catalog ${have:-none} to $got..."
+    IFS= read -r -t 1 password || true
+    if [[ -n ${password:-} && ! -f /etc/homeserver/password-generated ]]; then
+      trap 'rm -f /etc/homeserver/password' EXIT
+      install -m 600 /dev/null /etc/homeserver/password
+      printf '%s' "$password" > /etc/homeserver/password
+    fi
     rm -rf "$old"
     [[ -d $installed ]] && mv "$installed" "$old"
     mv "$new" "$installed"

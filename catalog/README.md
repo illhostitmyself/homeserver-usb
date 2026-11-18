@@ -10,7 +10,9 @@ installer and installed servers download. See [Releasing the app catalog](../REA
 | `apps.py` | Reads `catalog.json`: dependency rules, the installer's checklist, and what the Cockpit page shows and plans |
 | `apps.sh` | Adds and removes apps on an installed server (the Cockpit page runs it through `catalog.sh apps`) |
 | `configure-apps.sh`, `setup.py` | Download and configure the picked apps and connect them to each other; also drop the links to removed apps |
-| `update.sh` | What a server runs after taking a new catalog release: move the apps to the pinned versions, rewrite the dashboard |
+| `update.sh` | What a server runs after taking a new catalog release: install the Home Server files, move the apps to the pinned versions, apply their settings again |
+| `server.sh` | Installs the Home Server files and packages a release carries, unless the server has newer ones |
+| `bundle.sh` | Puts a release together: this directory plus the repo's `server/` tree, its package list and `server-rev` (not part of it) |
 | `release.sh` | Signs and publishes a release (not part of it) |
 
 To move an app to a new version, change its `image:` line (tag and `@sha256:` digest), raise

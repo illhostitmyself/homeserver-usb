@@ -3,6 +3,9 @@
 // which only uses catalog releases signed with the Home Server key.
 const status = document.getElementById("status");
 const updateButton = document.getElementById("update");
+const updateBox = document.getElementById("update-box");
+const updatePassword = document.getElementById("update-password");
+const updateError = document.getElementById("update-error");
 const log = document.getElementById("log");
 const appsBox = document.getElementById("apps");
 const change = document.getElementById("change");
@@ -42,31 +45,50 @@ function check() {
       const s = JSON.parse(out);
       if (s.latest === null) {
         status.textContent = `App catalog version ${s.installed ?? "unknown"}. Couldn't check for a newer one (no internet?).`;
-        updateButton.hidden = true;
+        updateBox.hidden = true;
       } else if (s.installed === null || s.latest > s.installed) {
         status.textContent = `An update is available: app catalog version ${s.latest} (you have ${s.installed ?? "none"}).`;
-        updateButton.hidden = false;
+        updateBox.hidden = false;
       } else {
         status.textContent = `Your apps are up to date (app catalog version ${s.installed}).`;
-        updateButton.hidden = true;
+        updateBox.hidden = true;
       }
     })
     .catch(e => { status.textContent = `Couldn't check for updates: ${e.message}`; });
 }
 
+// The password is checked against the owner's account, then handed to the update so it can apply the
+// apps' logins and links again.
+function checkPassword(value) {
+  return cockpit.spawn(["/usr/bin/sudo", "-S", "-k", "-v", "-p", ""], { err: "message" }).input(value + "\n");
+}
+
 updateButton.addEventListener("click", () => {
+  updateError.hidden = true;
+  if (!updatePassword.value) {
+    updateError.textContent = "Type your password first.";
+    updateError.hidden = false;
+    return;
+  }
   setBusy(true);
-  showLog();
-  status.textContent = "Updating. This can take a while; the apps restart on their own.";
-  // A sudo rule (/etc/sudoers.d/homeserver-catalog) allows exactly this, so it works without
-  // turning on administrative access.
-  cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "update"], { err: "out" })
-    .stream(append)
-    .then(() => { setBusy(false); check(); loadApps(); })
-    .catch(() => {
-      setBusy(false);
-      status.textContent = "The update didn't finish. Your apps are back on the version they had.";
-    });
+  checkPassword(updatePassword.value).then(() => {
+    showLog();
+    status.textContent = "Updating. This can take a while; the apps restart on their own.";
+    // A sudo rule (/etc/sudoers.d/homeserver-catalog) allows exactly this, so it works without
+    // turning on administrative access.
+    return cockpit.spawn(["/usr/bin/sudo", "-n", catalog, "update"], { err: "out" })
+      .input(updatePassword.value + "\n")
+      .stream(append)
+      .then(() => { updatePassword.value = ""; setBusy(false); check(); loadApps(); })
+      .catch(() => {
+        setBusy(false);
+        status.textContent = "The update didn't finish. Your apps are back on the version they had.";
+      });
+  }, () => {
+    setBusy(false);
+    updateError.textContent = "That password isn't right.";
+    updateError.hidden = false;
+  });
 });
 
 function loadApps() {
@@ -173,8 +195,7 @@ applyButton.addEventListener("click", () => {
   }
   setBusy(true);
   // The new apps get this password, so check it's really the owner's before using it.
-  cockpit.spawn(["/usr/bin/sudo", "-S", "-k", "-v", "-p", ""], { err: "message" })
-    .input(password.value + "\n")
+  checkPassword(password.value)
     .then(() => {
       showLog();
       planText.textContent = "Changing your apps. This can take a while...";

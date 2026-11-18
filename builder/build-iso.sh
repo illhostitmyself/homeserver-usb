@@ -23,6 +23,7 @@ mkdir -p "$share"
 (cd /src/server && find . -type f -printf '%P\n' | sort) > "$share/server-files"
 cp /src/live/config/package-lists/homeserver.list.chroot "$share/packages.list"
 echo "${VERSION:-unknown}" > "$share/version"
+echo "${SERVER_REV:-0}" > "$share/server-rev"
 cp -a /build/catalog-minimal "$share/catalog-minimal"
 chown -R root:root "$overlay"
 

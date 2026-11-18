@@ -52,10 +52,19 @@ fi
 rm -f "$T/usr/sbin/policy-rc.d"
 
 step "Updating Home Server..."
-while read -r f; do
-  install -D -m "$(stat -c %a "/$f")" "/$f" "$T/$f" || fail "couldn't copy /$f"
-done < $share/server-files
-for f in packages.list server-files version; do install -D -m 644 "$share/$f" "$T$share/$f"; done
+# Unless the server already has newer Home Server files, from an app catalog update (server-rev is the
+# time of their last change in the repo).
+have_rev=$(cat "$T$share/server-rev" 2>/dev/null || echo 0)
+if (( $(cat $share/server-rev 2>/dev/null || echo 0) >= have_rev )); then
+  while read -r f; do
+    install -D -m "$(stat -c %a "/$f")" "/$f" "$T/$f" || fail "couldn't copy /$f"
+  done < $share/server-files
+  for f in packages.list server-files server-rev; do install -D -m 644 "$share/$f" "$T$share/$f"; done
+  chmod 0440 "$T"/etc/sudoers.d/homeserver-*
+else
+  echo "  The server already has newer Home Server files from the app catalog."
+fi
+install -D -m 644 "$share/version" "$T$share/version"
 chroot "$T" systemctl enable homeserver-kiosk.service homeserver-firstboot.service homeserver.service \
   homeserver-refresh.service >/dev/null 2>&1 || fail "couldn't switch on the Home Server services"
 
