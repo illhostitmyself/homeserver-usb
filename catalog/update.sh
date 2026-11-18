@@ -33,3 +33,8 @@ compose up -d --remove-orphans
 setup connect || echo "Some app settings couldn't be applied again; the apps still work" >&2
 setup link || echo "Seerr's settings couldn't be applied again; it still works" >&2
 setup dashboard
+# Keys created by the setup steps above go on the dashboard widgets.
+set -a
+. /etc/homeserver/secrets.env
+set +a
+compose up -d

@@ -58,6 +58,12 @@ if has recyclarr; then
 fi
 setup link
 setup dashboard
+# Jellyfin, Seerr and Audiobookshelf only get their API keys during setup; starting the apps again
+# puts the keys on their dashboard widgets.
+set -a
+. "$etc/secrets.env"
+set +a
+compose up -d
 
 [[ -f $etc/password-generated ]] || rm -f "$etc/password"
 mkdir -p "$root/var/lib/homeserver"
