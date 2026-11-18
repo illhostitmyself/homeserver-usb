@@ -234,8 +234,10 @@ def sabnzbd_config(ctx):
     # host_whitelist lists the names it's reached by; IP addresses always work.
     s = ctx.secrets
     names = ", ".join(["sabnzbd", "localhost", ctx.host, ctx.host.split(".")[0]])
-    categories = "".join(f"[[{c}]]\nname = {c}\ndir = {c}\npriority = -100\npp = \"\"\nscript = Default\n"
-                         for c in CATEGORIES)
+    # Without the default category ([[*]]) SABnzbd adds its own defaults on the first start, and its
+    # movies and tv replace ours, with no folder.
+    categories = "[[*]]\nname = *\norder = 0\npp = 3\nscript = Default\ndir = \"\"\npriority = 0\n" + "".join(
+        f"[[{c}]]\nname = {c}\ndir = {c}\npriority = -100\npp = \"\"\nscript = Default\n" for c in CATEGORIES)
     return f"""[misc]
 api_key = {s["SABNZBD_KEY"]}
 nzb_key = {s["SABNZBD_NZB_KEY"]}
@@ -624,11 +626,23 @@ def connect_jellyfin(ctx):
     ctx.save_secrets()
 
 
+def connect_sabnzbd(ctx):
+    # sabnzbd.ini is only written at install; categories added to the catalog later reach older
+    # servers here. Servers installed before catalog 10 also got SABnzbd's own movies and tv
+    # categories, with no folder (see sabnzbd_config). Ones the owner made are left alone.
+    api = f"http://localhost:8090/api?apikey={ctx.secrets['SABNZBD_KEY']}&output=json"
+    have = {c["name"]: c["dir"] for c in call("GET", api + "&mode=get_config&section=categories")["config"]["categories"]}
+    for name in CATEGORIES:
+        if not have.get(name):
+            call("GET", api + f"&mode=set_config&section=categories&keyword={name}&dir={name}&priority=-100")
+
+
 def connect(ctx):
     if "qbittorrent" in ctx.apps:
         wait("http://localhost:8080")
     if "sabnzbd" in ctx.apps:
         wait("http://localhost:8090")
+        connect_sabnzbd(ctx)
     for name in ("sonarr", "radarr", "chaptarr"):
         if name in ctx.apps:
             connect_arr(ctx, name)
