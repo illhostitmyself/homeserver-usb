@@ -171,9 +171,10 @@ downloads and media are never removed.
 
 ## Changing how the dashboard looks
 
-On the same Apps page, **Dashboard look** sets the dashboard's title, light or dark theme, color and
-background picture. Click one of the built-in pictures, or upload your own from a phone or computer
-(the server's own screen can't open a file window). Click **Save** and reload the dashboard.
+On the same Apps page, **Dashboard look (Homepage)** sets the dashboard's title, light or dark
+theme, color and background picture. Click one of the built-in pictures, or upload your own from a
+phone or computer (the server's own screen can't open a file window). Click **Save**, then reload
+Homepage (the dashboard with the app tiles) with F5.
 
 ## Using your apps away from home
 

@@ -359,7 +359,7 @@ def look(ctx):
     (ctx.etc / "dashboard.json").write_text(json.dumps(saved, indent=2) + "\n")
     (ctx.etc / "dashboard.json").chmod(0o644)
     dashboard(ctx)
-    print("Saved. Reload the dashboard to see it.")
+    print("Saved. Reload Homepage (the dashboard with the app tiles, F5) to see it.")
 
 
 def dashboard(ctx):

@@ -195,8 +195,8 @@ uncommitted changes. Servers never go back to older Home Server files: each rele
 
 ## Dashboard look
 
-The **Dashboard look** section of the Apps page changes the dashboard's title, light or dark theme,
-accent color and background picture, for every screen at once. Pick one of the built-in pictures or
+The **Dashboard look (Homepage)** section of the Apps page changes the dashboard's title, light or
+dark theme, accent color and background picture, for every screen at once. Pick one of the built-in pictures or
 upload your own (JPEG, PNG or WebP, up to 15 MB). Uploading only works from another computer or
 phone: the server's own screen can't open a file window, so the built-in pictures are there for it.
 
