@@ -3,10 +3,10 @@ Description=Home Server screen
 ConditionKernelCommandLine=!boot=live
 After=systemd-user-sessions.service
 Conflicts=getty@tty1.service
-StartLimitIntervalSec=120
-StartLimitBurst=5
+StartLimitIntervalSec=0
 
 [Service]
+# Firefox comes straight back if it is closed or crashes; the screen never drops to a console.
 User=kiosk
 PAMName=login
 TTYPath=/dev/tty1
@@ -17,8 +17,8 @@ UtmpIdentifier=tty1
 UtmpMode=user
 Environment=XDG_SESSION_TYPE=wayland MOZ_ENABLE_WAYLAND=1
 ExecStart=/usr/bin/cage -d -s -- /usr/bin/firefox-esr file:///usr/share/homeserver/starting.html
-Restart=on-failure
-RestartSec=3
+Restart=always
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target
