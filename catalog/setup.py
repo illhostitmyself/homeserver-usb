@@ -328,7 +328,25 @@ def dashboard(ctx):
     }
     for name, data in files.items():
         ctx.write(ctx.appdata / "homepage" / name, json.dumps(data, indent=2) + "\n")
-    ctx.write(ctx.appdata / "homepage/custom.js", RELOAD_ON_ERRORS)
+    ctx.write(ctx.appdata / "homepage/custom.js", RELOAD_ON_ERRORS + SAME_HOST_LINKS.replace("HOST", ctx.host))
+
+
+# The tiles link to http://<name>.local:<port>. Opened from another address (the server's own screen
+# uses localhost, a phone may use the IP address), that's another site to the browser, and Cockpit's
+# login cookie (SameSite=Strict) is then dropped right after logging in, which sends you back to the
+# login page. So a click goes to the same address the dashboard was opened with.
+SAME_HOST_LINKS = """for (const type of ["click", "auxclick"]) {
+  document.addEventListener(type, event => {
+    const link = event.target.closest && event.target.closest("a[href]");
+    if (!link) return;
+    const url = new URL(link.href, location.href);
+    if (url.hostname === "HOST" && location.hostname !== "HOST") {
+      url.hostname = location.hostname;
+      link.href = url.href;
+    }
+  }, true);
+}
+"""
 
 
 # Right after boot some apps are still starting and answer with errors, and Homepage widgets don't
