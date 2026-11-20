@@ -201,6 +201,14 @@ pictures or upload your own (JPEG, PNG or WebP, up to 15 MB). Uploading only wor
 computer or phone: the server's own screen can't open a file window, so the built-in pictures are
 there for it. Saving restarts Homepage, so reload it a few seconds later.
 
+To go further, edit Homepage's files in `/srv/appdata/homepage` (see
+[its docs](https://gethomepage.dev/configs/)). Home Server writes `services.yaml`, `settings.yaml`,
+`widgets.yaml`, `docker.yaml` and `custom.js` again on every update and whenever the server's address
+changes, but only above the line that says "Your own additions go below this line": put your groups,
+widgets and settings below it and they're kept. A setting you add there replaces Home Server's.
+`bookmarks.yaml` is all yours. Updating from catalog 11 or older keeps a copy of the old files in
+`before-catalog-12/`.
+
 ## Remote access
 
 With the Tailscale app installed, the Apps page has a **Remote access** section. Until the server is

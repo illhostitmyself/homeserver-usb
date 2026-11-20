@@ -412,16 +412,55 @@ def dashboard(ctx):
             {"greeting": {"text_size": "2xl", "text": style["title"]}},
             {"resources": {"cpu": True, "memory": True, "disk": "/srv/data"}},
             {"datetime": {"text_size": "xl", "format": {"dateStyle": "long", "timeStyle": "short"}}}],
-        "bookmarks.yaml": [],
     }
     if style["background"]:
         files["settings.yaml"]["background"] = {"image": "/images/" + style["background"], "blur": "sm",
                                                 "brightness": 75}
         files["settings.yaml"]["cardBlur"] = "md"
-    ctx.mkdir(ctx.appdata / "homepage/images")
+    home = ctx.appdata / "homepage"
+    ctx.mkdir(home / "images")
+    if not (home / "bookmarks.yaml").exists():
+        ctx.write(home / "bookmarks.yaml", "[]\n")
     for name, data in files.items():
-        ctx.write(ctx.appdata / "homepage" / name, json.dumps(data, indent=2) + "\n")
-    ctx.write(ctx.appdata / "homepage/custom.js", RELOAD_ON_ERRORS + SAME_HOST_LINKS.replace("HOST", ctx.host))
+        theirs = owner_additions(ctx, home / name, "#")
+        if isinstance(data, list):
+            ours = "".join(f"- {json.dumps(item)}\n" for item in data)
+        else:
+            # Homepage refuses a file with the same setting twice, so the owner's replaces ours.
+            mine = set(re.findall(r"^([A-Za-z_][\w-]*)\s*:", theirs, re.M))
+            ours = "".join(f"{k}: {json.dumps(v)}\n" for k, v in data.items() if k not in mine)
+        write_managed(ctx, home / name, "#", ours, theirs)
+    write_managed(ctx, home / "custom.js", "//", RELOAD_ON_ERRORS + SAME_HOST_LINKS.replace("HOST", ctx.host),
+                  owner_additions(ctx, home / "custom.js", "//"))
+
+
+# The dashboard files are written again on every update and whenever the server's address changes. What
+# the owner adds below this line is kept. Each item above is JSON on one line, which is also YAML.
+ADDITIONS = "--- Your own additions go below this line and are kept when Home Server updates ---"
+
+
+def owner_additions(ctx, path, comment):
+    """What the owner added below the line. Files from before catalog 12 had no line and were all ours;
+    a copy goes in before-catalog-12/ in case the owner had edited one anyway."""
+    if not path.exists():
+        return ""
+    text = path.read_text()
+    marker = f"{comment} {ADDITIONS}\n"
+    if marker in text:
+        return text.split(marker, 1)[1]
+    backup = path.parent / "before-catalog-12" / path.name
+    if not backup.exists():
+        ctx.mkdir(backup.parent)
+        ctx.write(backup, text)
+    return ""
+
+
+def write_managed(ctx, path, comment, ours, theirs):
+    text = (f"{comment} Written by Home Server: everything above the line below is replaced on updates.\n"
+            f"{ours}{comment} {ADDITIONS}\n{theirs}")
+    # Unchanged files aren't touched, so the address check on every network change is free.
+    if not path.exists() or path.read_text() != text:
+        ctx.write(path, text)
 
 
 # The tiles link to http://<name>.local:<port>. Opened from another address (the server's own screen
