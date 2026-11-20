@@ -24,6 +24,7 @@ import json
 import os
 import re
 import secrets
+import socket
 import sys
 import time
 import urllib.error
@@ -98,6 +99,17 @@ class Context:
     def mkdir(self, path):
         path.mkdir(parents=True, exist_ok=True)
         self.own(path)
+
+
+def lan_address():
+    # The address of the network card the default route goes out of. Connecting a UDP socket sends
+    # nothing; it only picks the route.
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.0.2.1", 9))
+            return s.getsockname()[0]
+    except OSError:
+        return None
 
 
 def timezone(root):
@@ -368,7 +380,11 @@ def dashboard(ctx):
     # Apps appear through their homepage.* container labels; only things that aren't containers
     # are listed here. Homepage reads YAML, and JSON is valid YAML.
     style = read_look(ctx)
-    server = [{"Server settings": {"icon": "cockpit.png", "href": f"http://{ctx.host}:9090",
+    # Written again by /etc/NetworkManager/dispatcher.d/90-homeserver-address when the address changes.
+    address = lan_address()
+    server = [{"This server": {"icon": "mdi-server-network",
+                               "description": f"{ctx.host} · {address}" if address else ctx.host}},
+              {"Server settings": {"icon": "cockpit.png", "href": f"http://{ctx.host}:9090",
                                    "description": "Updates, disks, restart and shut down"}},
               {"Apps": {"icon": "mdi-apps", "href": f"http://{ctx.host}:9090/homeserver",
                         "description": "Add, remove and update your apps"}}]

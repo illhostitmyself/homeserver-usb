@@ -1,0 +1,6 @@
+#!/bin/bash
+# Homepage's "This server" tile shows the server's name and address; write it again when either changes.
+case $2 in up|down|dhcp4-change|hostname) ;; *) exit 0 ;; esac
+setup=/var/lib/homeserver/catalog/setup.py
+[[ -f $setup && -f /etc/homeserver/homeserver.env ]] || exit 0
+python3 "$setup" --root / dashboard >/dev/null || true
