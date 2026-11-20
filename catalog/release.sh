@@ -12,6 +12,11 @@ signers=../server/usr/share/homeserver/catalog-signers
 version=$(python3 -c 'import json; print(json.load(open("catalog.json"))["version"])')
 git diff --quiet HEAD -- . ../server ../live/config/package-lists ../installer/etc/calamares/modules/packages.conf ||
   { echo "Commit your changes first: the release is built from what's committed" >&2; exit 1; }
+# The catalog-vN tag goes on this commit, so GitHub must have it.
+commit=$(git rev-parse HEAD)
+git fetch -q origin
+[[ -n $(git branch -r --contains "$commit") ]] ||
+  { echo "Push first: the catalog-v$version tag goes on $commit, which isn't on GitHub yet" >&2; exit 1; }
 
 current=$(mktemp -d)
 trap 'rm -rf "$current"' EXIT
@@ -33,7 +38,7 @@ ssh-keygen -q -Y verify -f "$signers" -I homeserver-catalog -n homeserver-catalo
 tar -C "$out" -cf "$out/catalog.bundle.tar" catalog.tar.gz catalog.tar.gz.sig
 
 notes="App catalog version $version: the app configs and setup that Home Server installs and updates from."
-gh release create "catalog-v$version" --latest=false --title "App catalog v$version" --notes "$notes" \
+gh release create "catalog-v$version" --target "$commit" --latest=false --title "App catalog v$version" --notes "$notes" \
   "$out/catalog.tar.gz" "$out/catalog.tar.gz.sig" "$out/catalog.bundle.tar"
 gh release view catalog >/dev/null 2>&1 ||
   gh release create catalog --latest=false --title "App catalog (newest)" \
